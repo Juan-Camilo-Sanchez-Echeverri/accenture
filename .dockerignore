@@ -1,0 +1,14 @@
+target/
+.git/
+.gitignore
+.env
+.env.example
+.idea/
+.vscode/
+*.iml
+*.md
+*.http
+.gitattributes
+
+# Datos locales de Postgres y Redis (bind mounts)
+data/
