@@ -1,0 +1,34 @@
+name: franchise-api-test
+
+# Corre la suite de pruebas de Maven contra el Postgres y el Redis del stack
+# principal. Requiere que el stack este levantado:
+#
+#   docker compose up -d --build --wait
+#   docker compose -f docker-compose.test.yml run --rm test
+#
+# Monta el codigo fuente en lugar de construir una imagen, asi que los cambios se
+# reflejan sin rebuild.
+
+services:
+
+  test:
+    image: maven:3.9-eclipse-temurin-21
+    working_dir: /workspace
+    env_file:
+      - .env
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    networks:
+      - franchise-api
+    command: ["./mvnw", "-B", "verify"]
+
+networks:
+  # Red que crea docker-compose.yml: permite alcanzar postgres y redis por su
+  # nombre sin publicar sus puertos al host.
+  franchise-api:
+    external: true
+    name: franchise-api_default
+
+volumes:
+  maven-cache:
