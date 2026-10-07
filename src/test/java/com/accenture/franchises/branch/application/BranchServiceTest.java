@@ -144,4 +144,49 @@ class BranchServiceTest {
 
         verify(branches, never()).addProduct(any(), any(), anyInt());
     }
+
+    @Test
+    void removeProductDeletesTheLink() {
+        existingBranch();
+        existingProduct();
+        when(branches.findProductStock(branchId, productId))
+                .thenReturn(Optional.of(BranchProduct.restore(branchId, productId, 5)));
+
+        service.removeProduct(branchId, productId);
+
+        verify(branches).removeProduct(branchId, productId);
+    }
+
+    @Test
+    void removeProductFailsWhenBranchIsMissing() {
+        when(branches.findById(branchId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.removeProduct(branchId, productId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).removeProduct(any(), any());
+    }
+
+    @Test
+    void removeProductFailsWhenProductIsMissing() {
+        existingBranch();
+        when(products.findById(productId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.removeProduct(branchId, productId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).removeProduct(any(), any());
+    }
+
+    @Test
+    void removeProductFailsWhenProductIsNotLinked() {
+        existingBranch();
+        existingProduct();
+        when(branches.findProductStock(branchId, productId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.removeProduct(branchId, productId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).removeProduct(any(), any());
+    }
 }

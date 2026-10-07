@@ -1,6 +1,8 @@
 package com.accenture.franchises.branch.infrastructure.web;
 
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -153,6 +155,37 @@ class BranchControllerTest {
         mvc.perform(post("/api/v1/branches/not-a-uuid/products")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(productLinkBody(10)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void removeProductReturns204() throws Exception {
+        mvc.perform(delete("/api/v1/branches/{branchId}/products/{productId}", branchId, productId))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void removeProductReturns404WhenBranchIsMissing() throws Exception {
+        doThrow(new ResourceNotFoundException("Branch", branchId)).when(branches).removeProduct(branchId, productId);
+
+        mvc.perform(delete("/api/v1/branches/{branchId}/products/{productId}", branchId, productId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Resource not found"));
+    }
+
+    @Test
+    void removeProductReturns404WhenProductIsNotLinked() throws Exception {
+        doThrow(new ResourceNotFoundException("BranchProduct", branchId + "/" + productId))
+                .when(branches).removeProduct(branchId, productId);
+
+        mvc.perform(delete("/api/v1/branches/{branchId}/products/{productId}", branchId, productId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Resource not found"));
+    }
+
+    @Test
+    void removeProductReturns400OnMalformedProductId() throws Exception {
+        mvc.perform(delete("/api/v1/branches/{branchId}/products/not-a-uuid", branchId))
                 .andExpect(status().isBadRequest());
     }
 }

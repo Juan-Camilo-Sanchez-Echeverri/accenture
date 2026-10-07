@@ -14,4 +14,6 @@ public interface BranchRepositoryPort {
     Optional<BranchProduct> findProductStock(UUID branchId, UUID productId);
 
     BranchProduct addProduct(UUID branchId, UUID productId, int stock);
+
+    void removeProduct(UUID branchId, UUID productId);
 }

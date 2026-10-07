@@ -52,6 +52,18 @@ public class BranchService {
         return branches.addProduct(branch.getId(), product.getId(), stock);
     }
 
+    @Transactional
+    public void removeProduct(UUID branchId, UUID productId) {
+        getExistingBranch(branchId);
+        getExistingProduct(productId);
+
+        if (branches.findProductStock(branchId, productId).isEmpty()) {
+            throw new ResourceNotFoundException("BranchProduct", branchId + "/" + productId);
+        }
+
+        branches.removeProduct(branchId, productId);
+    }
+
     private Branch getExistingBranch(UUID branchId) {
         return branches.findById(branchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch", branchId));

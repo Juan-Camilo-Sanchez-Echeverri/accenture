@@ -5,6 +5,7 @@ import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
 import com.accenture.franchises.product.infrastructure.persistence.ProductJpaRepository;
+import jakarta.persistence.EntityManager;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
@@ -16,16 +17,19 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
     private final FranchiseJpaRepository franchises;
     private final ProductJpaRepository products;
     private final BranchProductJpaRepository stock;
+    private final EntityManager entityManager;
 
     public BranchRepositoryAdapter(
             BranchJpaRepository repository,
             FranchiseJpaRepository franchises,
             ProductJpaRepository products,
-            BranchProductJpaRepository stock) {
+            BranchProductJpaRepository stock,
+            EntityManager entityManager) {
         this.repository = repository;
         this.franchises = franchises;
         this.products = products;
         this.stock = stock;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -62,5 +66,11 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
                         products.getReferenceById(productId)));
 
         return BranchProductJpaMapper.toDomain(saved);
+    }
+
+    @Override
+    public void removeProduct(UUID branchId, UUID productId) {
+        stock.findById(new BranchProductId(branchId, productId))
+                .ifPresent(entityManager::remove);
     }
 }

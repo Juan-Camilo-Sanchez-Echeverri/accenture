@@ -17,6 +17,7 @@ import java.net.URI;
 import java.util.UUID;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,46 +29,65 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Sucursales", description = "Sucursales de una franquicia.")
 public class BranchController {
 
-    private static final String NOT_FOUND = "No existe la franquicia, la sucursal o el producto indicado.";
-    private static final String INVALID_BODY = "La petición no cumple las reglas de validación.";
-    private static final String DUPLICATED_NAME = "Ya existe una sucursal con ese nombre en la franquicia.";
-    private static final String PRODUCT_ALREADY_LINKED = "El producto ya está vinculado a la sucursal.";
+        private static final String NOT_FOUND = "No existe la franquicia, la sucursal, el producto o el vínculo indicado.";
+        private static final String INVALID_ID = "El identificador no es un UUID válido.";
+        private static final String INVALID_BODY = "La petición no cumple las reglas de validación.";
+        private static final String DUPLICATED_NAME = "Ya existe una sucursal con ese nombre en la franquicia.";
+        private static final String PRODUCT_ALREADY_LINKED = "El producto ya está vinculado a la sucursal.";
 
-    private final BranchService branches;
+        private final BranchService branches;
 
-    public BranchController(BranchService branches) {
-        this.branches = branches;
-    }
+        public BranchController(BranchService branches) {
+                this.branches = branches;
+        }
 
-    @PostMapping("/franchises/{franchiseId}/branches")
-    @Operation(summary = "Agregar sucursal", description = "Da de alta una nueva sucursal dentro de la franquicia indicada.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Sucursal creada.", content = @Content(schema = @Schema(implementation = BranchResponse.class))),
-            @ApiResponse(responseCode = "400", description = INVALID_BODY, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
-            @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
-            @ApiResponse(responseCode = "409", description = DUPLICATED_NAME, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
-    })
-    public ResponseEntity<BranchResponse> createBranch(
-            @Parameter(description = "Identificador UUID de la franquicia.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID franchiseId,
-            @Valid @RequestBody CreateBranchRequest request) {
-        BranchResponse response = BranchResponse.from(branches.addBranch(franchiseId, request.name()));
-        return ResponseEntity.created(URI.create("/api/v1/franchises/" + franchiseId + "/branches")).body(response);
-    }
+        @PostMapping("/franchises/{franchiseId}/branches")
+        @Operation(summary = "Agregar sucursal", description = "Da de alta una nueva sucursal dentro de la franquicia indicada.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "201", description = "Sucursal creada.", content = @Content(schema = @Schema(implementation = BranchResponse.class))),
+                        @ApiResponse(responseCode = "400", description = INVALID_BODY, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "409", description = DUPLICATED_NAME, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public ResponseEntity<BranchResponse> createBranch(
+                        @Parameter(description = "Identificador UUID de la franquicia.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID franchiseId,
+                        @Valid @RequestBody CreateBranchRequest request) {
+                BranchResponse response = BranchResponse.from(branches.addBranch(franchiseId, request.name()));
+                return ResponseEntity.created(URI.create("/api/v1/franchises/" + franchiseId + "/branches"))
+                                .body(response);
+        }
 
-    @PostMapping("/branches/{branchId}/products")
-    @Operation(summary = "Agregar producto a sucursal", description = "Vincula un producto del catálogo a la sucursal con su stock inicial.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Producto vinculado a la sucursal.", content = @Content(schema = @Schema(implementation = ProductStockResponse.class))),
-            @ApiResponse(responseCode = "400", description = INVALID_BODY, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
-            @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
-            @ApiResponse(responseCode = "409", description = PRODUCT_ALREADY_LINKED, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
-    })
-    public ResponseEntity<ProductStockResponse> addProduct(
-            @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId,
-            @Valid @RequestBody CreateBranchProductRequest request) {
-        ProductStockResponse response = ProductStockResponse.from(
-                branches.addProduct(branchId, request.productId(), request.stock()));
-        return ResponseEntity.created(URI.create("/api/v1/branches/" + branchId + "/products/" + response.productId()))
-                .body(response);
-    }
+        @PostMapping("/branches/{branchId}/products")
+        @Operation(summary = "Agregar producto a sucursal", description = "Vincula un producto del catálogo a la sucursal con su stock inicial.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "201", description = "Producto vinculado a la sucursal.", content = @Content(schema = @Schema(implementation = ProductStockResponse.class))),
+                        @ApiResponse(responseCode = "400", description = INVALID_BODY, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "409", description = PRODUCT_ALREADY_LINKED, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public ResponseEntity<ProductStockResponse> addProduct(
+                        @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId,
+                        @Valid @RequestBody CreateBranchProductRequest request) {
+                ProductStockResponse response = ProductStockResponse.from(
+                                branches.addProduct(branchId, request.productId(), request.stock()));
+                return ResponseEntity
+                                .created(URI.create(
+                                                "/api/v1/branches/" + branchId + "/products/" + response.productId()))
+                                .body(response);
+        }
+
+        @DeleteMapping("/branches/{branchId}/products/{productId}")
+        @Operation(summary = "Quitar producto de sucursal", description = "Desvincula un producto de la sucursal; se descarta el stock que tenía en ella.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "204", description = "Producto desvinculado de la sucursal."),
+                        @ApiResponse(responseCode = "400", description = INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public ResponseEntity<Void> removeProduct(
+                        @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId,
+                        @Parameter(description = "Identificador UUID del producto.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID productId) {
+
+                branches.removeProduct(branchId, productId);
+                return ResponseEntity.noContent().build();
+        }
 }

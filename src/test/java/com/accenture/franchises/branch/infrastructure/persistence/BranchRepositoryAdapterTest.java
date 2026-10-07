@@ -121,4 +121,22 @@ class BranchRepositoryAdapterTest {
     void findProductStockIsEmptyWhenTheLinkDoesNotExist() {
         assertThat(adapter.findProductStock(UUID.randomUUID(), productId)).isEmpty();
     }
+
+    @Test
+    void removeProductDeletesTheLinkAndItsStock() {
+        UUID branchId = adapter.save(Branch.create("Centro", franchiseId)).getId();
+        adapter.addProduct(branchId, productId, 7);
+
+        adapter.removeProduct(branchId, productId);
+
+        assertThat(stockRepository.count()).isZero();
+        assertThat(adapter.findProductStock(branchId, productId)).isEmpty();
+    }
+
+    @Test
+    void removeProductIsNoOpWhenTheLinkDoesNotExist() {
+        adapter.removeProduct(UUID.randomUUID(), productId);
+
+        assertThat(stockRepository.count()).isZero();
+    }
 }
