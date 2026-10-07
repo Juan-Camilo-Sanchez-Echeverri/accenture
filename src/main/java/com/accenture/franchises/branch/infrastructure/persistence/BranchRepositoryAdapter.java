@@ -4,6 +4,7 @@ import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.branch.domain.TopProduct;
+import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
 import com.accenture.franchises.product.infrastructure.persistence.ProductJpaRepository;
 import jakarta.persistence.EntityManager;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class BranchRepositoryAdapter implements BranchRepositoryPort {
+
+    private static final String TYPE = "Branch";
 
     private final BranchJpaRepository repository;
     private final FranchiseJpaRepository franchises;
@@ -39,9 +42,11 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
 
     @Override
     public Branch save(Branch branch) {
-        BranchJpaEntity entity = new BranchJpaEntity(
-                branch.getName(),
-                franchises.getReferenceById(branch.getFranchiseId()));
+        BranchJpaEntity entity = branch.getId() == null
+                ? new BranchJpaEntity(
+                        branch.getName(),
+                        franchises.getReferenceById(branch.getFranchiseId()))
+                : renameExisting(branch.getId(), branch.getName());
 
         return BranchJpaMapper.toDomain(repository.saveAndFlush(entity));
     }
@@ -54,6 +59,11 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
     @Override
     public Optional<Branch> findById(UUID id) {
         return repository.findById(id).map(BranchJpaMapper::toDomain);
+    }
+
+    @Override
+    public void delete(UUID branchId) {
+        repository.deleteById(branchId);
     }
 
     @Override
@@ -108,5 +118,13 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
         return bestByBranch.values().stream()
                 .sorted(Comparator.comparing(TopProduct::branchName))
                 .toList();
+    }
+
+    private BranchJpaEntity renameExisting(UUID branchId, String name) {
+        BranchJpaEntity entity = repository.findById(branchId)
+                .orElseThrow(() -> new ResourceNotFoundException(TYPE, branchId));
+
+        entity.setName(name);
+        return entity;
     }
 }

@@ -99,6 +99,60 @@ class BranchServiceTest {
     }
 
     @Test
+    void renameUpdatesTheName() {
+        existingBranch();
+        when(branches.existsByNameInFranchise("Norte", franchiseId)).thenReturn(false);
+        when(branches.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Branch renamed = service.rename(branchId, "Norte");
+
+        assertThat(renamed.getName()).isEqualTo("Norte");
+        verify(branches).save(any());
+    }
+
+    @Test
+    void renameKeepsTheSameNameWhenOnlyCaseChanges() {
+        existingBranch();
+        when(branches.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Branch renamed = service.rename(branchId, "centro");
+
+        assertThat(renamed.getName()).isEqualTo("centro");
+        verify(branches, never()).existsByNameInFranchise(any(), any());
+        verify(branches).save(any());
+    }
+
+    @Test
+    void renameRejectsNameTakenByAnotherBranch() {
+        existingBranch();
+        when(branches.existsByNameInFranchise("Almacén", franchiseId)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.rename(branchId, "Almacén"))
+                .isInstanceOf(DuplicateNameException.class);
+
+        verify(branches, never()).save(any());
+    }
+
+    @Test
+    void deleteRemovesTheBranch() {
+        existingBranch();
+
+        service.delete(branchId);
+
+        verify(branches).delete(branchId);
+    }
+
+    @Test
+    void deleteFailsWhenBranchIsMissing() {
+        when(branches.findById(branchId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.delete(branchId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).delete(any());
+    }
+
+    @Test
     void addProductSavesTheStock() {
         existingBranch();
         existingProduct();

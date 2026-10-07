@@ -5,6 +5,7 @@ import com.accenture.franchises.branch.infrastructure.web.dto.BranchResponse;
 import com.accenture.franchises.branch.infrastructure.web.dto.CreateBranchProductRequest;
 import com.accenture.franchises.branch.infrastructure.web.dto.CreateBranchRequest;
 import com.accenture.franchises.branch.infrastructure.web.dto.ProductStockResponse;
+import com.accenture.franchises.branch.infrastructure.web.dto.RenameBranchRequest;
 import com.accenture.franchises.branch.infrastructure.web.dto.TopProductResponse;
 import com.accenture.franchises.branch.infrastructure.web.dto.UpdateStockRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +61,45 @@ public class BranchController {
                 BranchResponse response = BranchResponse.from(branches.addBranch(franchiseId, request.name()));
                 return ResponseEntity.created(URI.create("/api/v1/franchises/" + franchiseId + "/branches"))
                                 .body(response);
+        }
+
+        @GetMapping("/branches/{branchId}")
+        @Operation(summary = "Obtener una sucursal", description = "Devuelve la sucursal indicada por su identificador.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Sucursal encontrada.", content = @Content(schema = @Schema(implementation = BranchResponse.class))),
+                        @ApiResponse(responseCode = "400", description = INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public BranchResponse getBranch(
+                        @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId) {
+                return BranchResponse.from(branches.findById(branchId));
+        }
+
+        @PatchMapping("/branches/{branchId}")
+        @Operation(summary = "Renombrar sucursal", description = "Cambia el nombre de una sucursal existente.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Sucursal renombrada.", content = @Content(schema = @Schema(implementation = BranchResponse.class))),
+                        @ApiResponse(responseCode = "400", description = INVALID_BODY, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "409", description = DUPLICATED_NAME, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public BranchResponse renameBranch(
+                        @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId,
+                        @Valid @RequestBody RenameBranchRequest request) {
+                return BranchResponse.from(branches.rename(branchId, request.name()));
+        }
+
+        @DeleteMapping("/branches/{branchId}")
+        @Operation(summary = "Eliminar sucursal", description = "Da de baja la sucursal y el stock de sus productos en ella.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "204", description = "Sucursal eliminada."),
+                        @ApiResponse(responseCode = "400", description = INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public ResponseEntity<Void> deleteBranch(
+                        @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId) {
+                branches.delete(branchId);
+                return ResponseEntity.noContent().build();
         }
 
         @PostMapping("/branches/{branchId}/products")

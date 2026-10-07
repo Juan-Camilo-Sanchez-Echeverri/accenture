@@ -44,6 +44,27 @@ public class BranchService {
         return branches.save(Branch.create(name, franchise.getId()));
     }
 
+    public Branch findById(UUID branchId) {
+        return getExistingBranch(branchId);
+    }
+
+    @Transactional
+    public Branch rename(UUID branchId, String name) {
+        Branch branch = getExistingBranch(branchId);
+        if (!branch.getName().equalsIgnoreCase(name)
+                && branches.existsByNameInFranchise(name, branch.getFranchiseId())) {
+            throw new DuplicateNameException(TYPE, name);
+        }
+
+        return branches.save(branch.rename(name));
+    }
+
+    @Transactional
+    public void delete(UUID branchId) {
+        getExistingBranch(branchId);
+        branches.delete(branchId);
+    }
+
     @Transactional
     public BranchProduct addProduct(UUID branchId, UUID productId, int stock) {
         Branch branch = getExistingBranch(branchId);
@@ -60,7 +81,7 @@ public class BranchService {
         getExistingProduct(productId);
 
         if (branches.findProductStock(branchId, productId).isEmpty()) {
-            throw new ResourceNotFoundException("BranchProduct", branchId + "/" + productId);
+            throw new ResourceNotFoundException("Product %s is not linked to branch %s".formatted(productId, branchId));
         }
 
         branches.removeProduct(branchId, productId);
@@ -72,7 +93,7 @@ public class BranchService {
         getExistingProduct(productId);
 
         if (branches.findProductStock(branchId, productId).isEmpty()) {
-            throw new ResourceNotFoundException("BranchProduct", branchId + "/" + productId);
+            throw new ResourceNotFoundException("Product %s is not linked to branch %s".formatted(productId, branchId));
         }
 
         return branches.updateStock(branchId, productId, stock);

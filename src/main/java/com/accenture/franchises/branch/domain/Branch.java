@@ -27,6 +27,10 @@ public class Branch {
         return new Branch(id, name, franchiseId, createdAt, updatedAt);
     }
 
+    public Branch rename(String name) {
+        return new Branch(id, name, franchiseId, createdAt, updatedAt);
+    }
+
     public UUID getId() {
         return id;
     }

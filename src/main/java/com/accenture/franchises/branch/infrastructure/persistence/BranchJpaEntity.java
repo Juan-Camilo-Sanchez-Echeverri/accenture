@@ -62,6 +62,10 @@ public class BranchJpaEntity {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public FranchiseJpaEntity getFranchise() {
         return franchise;
     }
