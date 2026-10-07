@@ -3,9 +3,14 @@ package com.accenture.franchises.branch.infrastructure.persistence;
 import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
+import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
 import com.accenture.franchises.product.infrastructure.persistence.ProductJpaRepository;
 import jakarta.persistence.EntityManager;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
@@ -72,5 +77,36 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
     public void removeProduct(UUID branchId, UUID productId) {
         stock.findById(new BranchProductId(branchId, productId))
                 .ifPresent(entityManager::remove);
+    }
+
+    @Override
+    public BranchProduct updateStock(UUID branchId, UUID productId, int quantity) {
+        BranchProductJpaEntity entity = stock.findById(new BranchProductId(branchId, productId))
+                .orElseThrow();
+
+        entity.setStock(quantity);
+        entityManager.flush();
+        return BranchProductJpaMapper.toDomain(entity);
+    }
+
+    @Override
+    public List<TopProduct> findTopProductsPerBranch(UUID franchiseId) {
+        Map<UUID, TopProduct> bestByBranch = new HashMap<>();
+        for (BranchProductJpaEntity row : stock.findAllByBranchFranchiseId(franchiseId)) {
+            UUID branchId = row.getId().getBranchId();
+            TopProduct candidate = new TopProduct(
+                    branchId,
+                    row.getBranch().getName(),
+                    row.getId().getProductId(),
+                    row.getProduct().getName(),
+                    row.getStock());
+            TopProduct current = bestByBranch.get(branchId);
+            if (current == null || candidate.stock() > current.stock()) {
+                bestByBranch.put(branchId, candidate);
+            }
+        }
+        return bestByBranch.values().stream()
+                .sorted(Comparator.comparing(TopProduct::branchName))
+                .toList();
     }
 }

@@ -3,6 +3,7 @@ package com.accenture.franchises.branch.application;
 import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
+import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
@@ -10,6 +11,7 @@ import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.product.domain.Product;
 import com.accenture.franchises.product.domain.ProductRepositoryPort;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +64,23 @@ public class BranchService {
         }
 
         branches.removeProduct(branchId, productId);
+    }
+
+    @Transactional
+    public BranchProduct updateStock(UUID branchId, UUID productId, int stock) {
+        getExistingBranch(branchId);
+        getExistingProduct(productId);
+
+        if (branches.findProductStock(branchId, productId).isEmpty()) {
+            throw new ResourceNotFoundException("BranchProduct", branchId + "/" + productId);
+        }
+
+        return branches.updateStock(branchId, productId, stock);
+    }
+
+    public List<TopProduct> topProductsPerBranch(UUID franchiseId) {
+        getExistingFranchise(franchiseId);
+        return branches.findTopProductsPerBranch(franchiseId);
     }
 
     private Branch getExistingBranch(UUID branchId) {

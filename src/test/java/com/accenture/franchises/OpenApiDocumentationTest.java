@@ -41,6 +41,8 @@ class OpenApiDocumentationTest {
                 .contains("Eliminar producto")
                 .contains("Agregar producto a sucursal")
                 .contains("Quitar producto de sucursal")
+                .contains("Cambiar stock de un producto en sucursal")
+                .contains("Productos con más stock por sucursal")
                 .contains("Página a consultar, empezando en 0.")
                 .contains("Elementos por página, con un máximo de 100.")
                 .contains("Identificador UUID de la franquicia.");

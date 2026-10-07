@@ -5,6 +5,8 @@ import com.accenture.franchises.branch.infrastructure.web.dto.BranchResponse;
 import com.accenture.franchises.branch.infrastructure.web.dto.CreateBranchProductRequest;
 import com.accenture.franchises.branch.infrastructure.web.dto.CreateBranchRequest;
 import com.accenture.franchises.branch.infrastructure.web.dto.ProductStockResponse;
+import com.accenture.franchises.branch.infrastructure.web.dto.TopProductResponse;
+import com.accenture.franchises.branch.infrastructure.web.dto.UpdateStockRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,10 +16,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -74,6 +79,38 @@ public class BranchController {
                                 .created(URI.create(
                                                 "/api/v1/branches/" + branchId + "/products/" + response.productId()))
                                 .body(response);
+        }
+
+        @PatchMapping("/branches/{branchId}/products/{productId}")
+        @Operation(summary = "Cambiar stock de un producto en sucursal", description = "Modifica la cantidad en stock que el producto tiene en la sucursal.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Stock actualizado.", content = @Content(schema = @Schema(implementation = ProductStockResponse.class))),
+                        @ApiResponse(responseCode = "400", description = INVALID_BODY + " "
+                                        + INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public ResponseEntity<ProductStockResponse> updateStock(
+                        @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId,
+                        @Parameter(description = "Identificador UUID del producto.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID productId,
+                        @Valid @RequestBody UpdateStockRequest request) {
+                ProductStockResponse response = ProductStockResponse.from(
+                                branches.updateStock(branchId, productId, request.stock()));
+                return ResponseEntity.ok(response);
+        }
+
+        @GetMapping("/franchises/{franchiseId}/top-products")
+        @Operation(summary = "Productos con más stock por sucursal", description = "Devuelve, para cada sucursal de la franquicia, el producto que tiene el mayor stock, indicando a qué sucursal pertenece.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Un producto por sucursal.", content = @Content(schema = @Schema(implementation = TopProductResponse.class))),
+                        @ApiResponse(responseCode = "400", description = INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
+                        @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        })
+        public ResponseEntity<List<TopProductResponse>> topProducts(
+                        @Parameter(description = "Identificador UUID de la franquicia.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID franchiseId) {
+                List<TopProductResponse> response = branches.topProductsPerBranch(franchiseId).stream()
+                                .map(TopProductResponse::from)
+                                .toList();
+                return ResponseEntity.ok(response);
         }
 
         @DeleteMapping("/branches/{branchId}/products/{productId}")

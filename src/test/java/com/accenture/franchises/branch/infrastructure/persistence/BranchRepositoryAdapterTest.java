@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.accenture.franchises.branch.domain.Branch;
+import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaEntity;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
 import com.accenture.franchises.product.infrastructure.persistence.ProductJpaEntity;
 import com.accenture.franchises.product.infrastructure.persistence.ProductJpaRepository;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -138,5 +140,54 @@ class BranchRepositoryAdapterTest {
         adapter.removeProduct(UUID.randomUUID(), productId);
 
         assertThat(stockRepository.count()).isZero();
+    }
+
+    @Test
+    void updateStockChangesTheQuantityInTheStore() {
+        UUID branchId = adapter.save(Branch.create("Centro", franchiseId)).getId();
+        adapter.addProduct(branchId, productId, 7);
+
+        adapter.updateStock(branchId, productId, 20);
+
+        assertThat(stockRepository.count()).isEqualTo(1);
+        assertThat(adapter.findProductStock(branchId, productId).orElseThrow().getStock()).isEqualTo(20);
+    }
+
+    @Test
+    void updateStockFailsWhenTheLinkDoesNotExist() {
+        assertThatThrownBy(() -> adapter.updateStock(UUID.randomUUID(), productId, 20))
+                .isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    void topProductsPerBranchReturnsTheBestProductOfEachBranch() {
+        UUID product1 = productRepository.saveAndFlush(new ProductJpaEntity("Pizza")).getId();
+        UUID branchA = adapter.save(Branch.create("North", franchiseId)).getId();
+        UUID branchB = adapter.save(Branch.create("South", franchiseId)).getId();
+        adapter.addProduct(branchA, productId, 5);
+        adapter.addProduct(branchA, product1, 20);
+        adapter.addProduct(branchB, productId, 30);
+
+        var top = adapter.findTopProductsPerBranch(franchiseId);
+
+        assertThat(top).extracting(TopProduct::branchName).containsExactly("North", "South");
+        assertThat(top).extracting(TopProduct::productId)
+                .containsExactly(product1, productId);
+        assertThat(top).extracting(TopProduct::stock).containsExactly(20, 30);
+        assertThat(top.get(0).productName()).isEqualTo("Pizza");
+    }
+
+    @Test
+    void topProductsPerBranchIsEmptyWhenTheFranchiseHasNoProducts() {
+        assertThat(adapter.findTopProductsPerBranch(franchiseId)).isEmpty();
+    }
+
+    @Test
+    void topProductsPerBranchIgnoresOtherFranchises() {
+        UUID alien = franchiseRepository.saveAndFlush(new FranchiseJpaEntity("Alien")).getId();
+        UUID alienBranch = adapter.save(Branch.create("Alfa", alien)).getId();
+        adapter.addProduct(alienBranch, productId, 100);
+
+        assertThat(adapter.findTopProductsPerBranch(franchiseId)).isEmpty();
     }
 }

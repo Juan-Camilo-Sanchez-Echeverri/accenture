@@ -58,6 +58,10 @@ public class BranchProductJpaEntity implements Persistable<BranchProductId> {
         return stock;
     }
 
+    public void setStock(int stock) {
+        this.stock = stock;
+    }
+
     @Override
     public boolean isNew() {
         return true;

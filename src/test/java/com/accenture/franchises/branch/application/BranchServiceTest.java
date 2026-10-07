@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
+import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
 import com.accenture.franchises.common.exception.ConflictException;
@@ -19,6 +20,7 @@ import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.product.domain.Product;
 import com.accenture.franchises.product.domain.ProductRepositoryPort;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -188,5 +190,73 @@ class BranchServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(branches, never()).removeProduct(any(), any());
+    }
+
+    @Test
+    void updateStockChangesTheQuantity() {
+        existingBranch();
+        existingProduct();
+        when(branches.findProductStock(branchId, productId))
+                .thenReturn(Optional.of(BranchProduct.restore(branchId, productId, 5)));
+        when(branches.updateStock(branchId, productId, 25))
+                .thenReturn(BranchProduct.restore(branchId, productId, 25));
+
+        BranchProduct updated = service.updateStock(branchId, productId, 25);
+
+        assertThat(updated.getStock()).isEqualTo(25);
+    }
+
+    @Test
+    void updateStockFailsWhenBranchIsMissing() {
+        when(branches.findById(branchId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateStock(branchId, productId, 25))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).updateStock(any(), any(), anyInt());
+    }
+
+    @Test
+    void updateStockFailsWhenProductIsMissing() {
+        existingBranch();
+        when(products.findById(productId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateStock(branchId, productId, 25))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).updateStock(any(), any(), anyInt());
+    }
+
+    @Test
+    void updateStockFailsWhenProductIsNotLinked() {
+        existingBranch();
+        existingProduct();
+        when(branches.findProductStock(branchId, productId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateStock(branchId, productId, 25))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).updateStock(any(), any(), anyInt());
+    }
+
+    @Test
+    void topProductsPerBranchReturnsTheBestProductOfEachBranch() {
+        existingFranchise();
+        TopProduct expected = new TopProduct(branchId, "Centro", productId, "Hamburguesa", 40);
+        when(branches.findTopProductsPerBranch(franchiseId)).thenReturn(List.of(expected));
+
+        List<TopProduct> top = service.topProductsPerBranch(franchiseId);
+
+        assertThat(top).containsExactly(expected);
+    }
+
+    @Test
+    void topProductsPerBranchFailsWhenFranchiseIsMissing() {
+        when(franchises.findById(franchiseId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.topProductsPerBranch(franchiseId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).findTopProductsPerBranch(any());
     }
 }

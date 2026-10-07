@@ -1,5 +1,6 @@
 package com.accenture.franchises.branch.domain;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,4 +17,8 @@ public interface BranchRepositoryPort {
     BranchProduct addProduct(UUID branchId, UUID productId, int stock);
 
     void removeProduct(UUID branchId, UUID productId);
+
+    BranchProduct updateStock(UUID branchId, UUID productId, int stock);
+
+    List<TopProduct> findTopProductsPerBranch(UUID franchiseId);
 }

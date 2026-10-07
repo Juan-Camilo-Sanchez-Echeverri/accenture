@@ -15,4 +15,13 @@ public interface BranchProductJpaRepository extends JpaRepository<BranchProductJ
             where bp.id.productId in :ids
             """)
     List<BranchProductJpaEntity> findAllByProductIdIn(@Param("ids") Collection<UUID> ids);
+
+    @Query("""
+            select bp from BranchProductJpaEntity bp
+            join fetch bp.branch b
+            join fetch bp.product p
+            where b.franchise.id = :franchiseId
+            order by bp.stock desc, p.name asc
+            """)
+    List<BranchProductJpaEntity> findAllByBranchFranchiseId(@Param("franchiseId") UUID franchiseId);
 }
