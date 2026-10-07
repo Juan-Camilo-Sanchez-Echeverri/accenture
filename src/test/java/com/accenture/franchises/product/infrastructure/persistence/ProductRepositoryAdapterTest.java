@@ -3,8 +3,15 @@ package com.accenture.franchises.product.infrastructure.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.accenture.franchises.branch.infrastructure.persistence.BranchJpaEntity;
+import com.accenture.franchises.branch.infrastructure.persistence.BranchJpaRepository;
+import com.accenture.franchises.branch.infrastructure.persistence.BranchProductId;
+import com.accenture.franchises.branch.infrastructure.persistence.BranchProductJpaEntity;
+import com.accenture.franchises.branch.infrastructure.persistence.BranchProductJpaRepository;
 import com.accenture.franchises.common.pagination.PageQuery;
 import com.accenture.franchises.common.pagination.PageResult;
+import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaEntity;
+import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
 import com.accenture.franchises.product.domain.Product;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -24,6 +31,15 @@ class ProductRepositoryAdapterTest {
 
     @Autowired
     private ProductJpaRepository repository;
+
+    @Autowired
+    private FranchiseJpaRepository franchiseRepository;
+
+    @Autowired
+    private BranchJpaRepository branchRepository;
+
+    @Autowired
+    private BranchProductJpaRepository stockRepository;
 
     @Test
     void saveAssignsIdAndTimestamps() {
@@ -57,10 +73,10 @@ class ProductRepositoryAdapterTest {
             adapter.save(Product.create("Producto %02d".formatted(i)));
         }
 
-        PageResult<Product> page = adapter.findAll(PageQuery.of(1, 2));
+        PageResult<Product> page = adapter.findAll(PageQuery.of(0, 2));
 
         assertThat(page.items()).hasSize(2);
-        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.page()).isZero();
         assertThat(page.limit()).isEqualTo(2);
         assertThat(page.totalElements()).isEqualTo(5);
         assertThat(page.totalPages()).isEqualTo(3);
@@ -90,5 +106,44 @@ class ProductRepositoryAdapterTest {
     @Test
     void findByIdReturnsEmptyWhenMissing() {
         assertThat(adapter.findById(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void findAllIncludesTheStockPerBranch() {
+        FranchiseJpaEntity franchise = franchiseRepository.saveAndFlush(new FranchiseJpaEntity("Acme"));
+        BranchJpaEntity branch = branchRepository.saveAndFlush(new BranchJpaEntity("Centro", franchise));
+        Product saved = adapter.save(Product.create("Hamburguesa"));
+        stockRepository.saveAndFlush(new BranchProductJpaEntity(
+                new BranchProductId(branch.getId(), saved.getId()),
+                branch,
+                repository.getReferenceById(saved.getId()),
+                12));
+
+        PageResult<Product> page = adapter.findAll(PageQuery.of(0, 20));
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().get(0).getStocks()).hasSize(1);
+        assertThat(page.items().get(0).getStocks().get(0).branchId()).isEqualTo(branch.getId());
+        assertThat(page.items().get(0).getStocks().get(0).branchName()).isEqualTo("Centro");
+        assertThat(page.items().get(0).getStocks().get(0).stock()).isEqualTo(12);
+    }
+
+    @Test
+    void findByIdIncludesTheStockPerBranch() {
+        FranchiseJpaEntity franchise = franchiseRepository.saveAndFlush(new FranchiseJpaEntity("Acme"));
+        BranchJpaEntity branch = branchRepository.saveAndFlush(new BranchJpaEntity("Centro", franchise));
+        Product saved = adapter.save(Product.create("Hamburguesa"));
+        stockRepository.saveAndFlush(new BranchProductJpaEntity(
+                new BranchProductId(branch.getId(), saved.getId()),
+                branch,
+                repository.getReferenceById(saved.getId()),
+                5));
+
+        Product reloaded = adapter.findById(saved.getId()).orElseThrow();
+
+        assertThat(reloaded.getStocks()).hasSize(1);
+        assertThat(reloaded.getStocks().get(0).branchId()).isEqualTo(branch.getId());
+        assertThat(reloaded.getStocks().get(0).branchName()).isEqualTo("Centro");
+        assertThat(reloaded.getStocks().get(0).stock()).isEqualTo(5);
     }
 }

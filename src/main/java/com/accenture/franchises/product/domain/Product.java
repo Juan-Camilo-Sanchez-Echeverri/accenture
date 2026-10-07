@@ -1,6 +1,7 @@
 package com.accenture.franchises.product.domain;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public class Product {
@@ -9,24 +10,31 @@ public class Product {
     private final String name;
     private final Instant createdAt;
     private final Instant updatedAt;
+    private final List<ProductStock> stocks;
 
-    private Product(UUID id, String name, Instant createdAt, Instant updatedAt) {
+    private Product(UUID id, String name, Instant createdAt, Instant updatedAt, List<ProductStock> stocks) {
         this.id = id;
         this.name = name;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.stocks = List.copyOf(stocks);
     }
 
     public static Product create(String name) {
-        return new Product(null, name, null, null);
+        return new Product(null, name, null, null, List.of());
     }
 
     public static Product restore(UUID id, String name, Instant createdAt, Instant updatedAt) {
-        return new Product(id, name, createdAt, updatedAt);
+        return restore(id, name, createdAt, updatedAt, List.of());
+    }
+
+    public static Product restore(UUID id, String name, Instant createdAt, Instant updatedAt,
+            List<ProductStock> stocks) {
+        return new Product(id, name, createdAt, updatedAt, stocks);
     }
 
     public Product rename(String name) {
-        return new Product(id, name, createdAt, updatedAt);
+        return new Product(id, name, createdAt, updatedAt, stocks);
     }
 
     public UUID getId() {
@@ -43,5 +51,9 @@ public class Product {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public List<ProductStock> getStocks() {
+        return stocks;
     }
 }

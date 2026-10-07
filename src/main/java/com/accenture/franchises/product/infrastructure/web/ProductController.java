@@ -61,7 +61,7 @@ public class ProductController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar productos", description = "Devuelve una página de productos ordenados por fecha de creación.")
+    @Operation(summary = "Listar productos", description = "Devuelve una página de productos con su stock por sucursal, ordenados por fecha de creación.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Página de productos.", content = @Content(schema = @Schema(implementation = PageResponse.class)))
     })
@@ -73,7 +73,7 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}")
-    @Operation(summary = "Obtener un producto", description = "Devuelve el producto indicado por su identificador.")
+    @Operation(summary = "Obtener un producto", description = "Devuelve el producto indicado con su stock por sucursal.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Producto encontrado.", content = @Content(schema = @Schema(implementation = ProductResponse.class))),
             @ApiResponse(responseCode = "400", description = INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),

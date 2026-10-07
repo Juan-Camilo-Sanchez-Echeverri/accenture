@@ -17,6 +17,7 @@ import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.common.pagination.PageResult;
 import com.accenture.franchises.product.application.ProductService;
 import com.accenture.franchises.product.domain.Product;
+import com.accenture.franchises.product.domain.ProductStock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -37,10 +38,15 @@ class ProductControllerTest {
     private ProductService products;
 
     private final UUID id = UUID.randomUUID();
+    private final UUID branchId = UUID.randomUUID();
     private final Instant now = Instant.parse("2026-01-01T10:00:00Z");
 
     private Product product(String name) {
         return Product.restore(id, name, now, now);
+    }
+
+    private Product productWithStock() {
+        return Product.restore(id, "Hamburguesa", now, now, List.of(new ProductStock(branchId, "Centro", 12)));
     }
 
     @Test
@@ -93,12 +99,16 @@ class ProductControllerTest {
     @Test
     void listReturnsPageMetadata() throws Exception {
         when(products.findAll(any())).thenReturn(
-                PageResult.of(List.of(product("Hamburguesa"), product("Pizza")), 1, 2, 5));
+                PageResult.of(List.of(productWithStock(), product("Pizza")), 1, 2, 5));
 
         mvc.perform(get("/api/v1/products?page=1&limit=2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(2))
                 .andExpect(jsonPath("$.items[0].name").value("Hamburguesa"))
+                .andExpect(jsonPath("$.items[0].stocks[0].branchId").value(branchId.toString()))
+                .andExpect(jsonPath("$.items[0].stocks[0].branchName").value("Centro"))
+                .andExpect(jsonPath("$.items[0].stocks[0].stock").value(12))
+                .andExpect(jsonPath("$.items[1].stocks").isEmpty())
                 .andExpect(jsonPath("$.page").value(1))
                 .andExpect(jsonPath("$.limit").value(2))
                 .andExpect(jsonPath("$.totalElements").value(5))
@@ -119,12 +129,14 @@ class ProductControllerTest {
 
     @Test
     void getReturns200() throws Exception {
-        when(products.findById(id)).thenReturn(product("Hamburguesa"));
+        when(products.findById(id)).thenReturn(productWithStock());
 
         mvc.perform(get("/api/v1/products/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
-                .andExpect(jsonPath("$.name").value("Hamburguesa"));
+                .andExpect(jsonPath("$.name").value("Hamburguesa"))
+                .andExpect(jsonPath("$.stocks[0].branchName").value("Centro"))
+                .andExpect(jsonPath("$.stocks[0].stock").value(12));
     }
 
     @Test
