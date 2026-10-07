@@ -12,8 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.franchise.application.FranchiseService;
 import com.accenture.franchises.franchise.domain.Franchise;
+import com.accenture.franchises.franchise.domain.FranchiseDetail;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.common.pagination.PageResult;
@@ -119,18 +121,23 @@ class FranchiseControllerTest {
     }
 
     @Test
-    void getReturns200() throws Exception {
-        when(franchises.findById(id)).thenReturn(franchise("Acme"));
+    void getReturns200WithTheBranchesOfTheFranchise() throws Exception {
+        FranchiseDetail detail = new FranchiseDetail(
+                franchise("Acme"),
+                List.of(Branch.restore(UUID.randomUUID(), "Centro", id, now, now)));
+        when(franchises.findDetail(id)).thenReturn(detail);
 
         mvc.perform(get("/api/v1/franchises/{id}", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
-                .andExpect(jsonPath("$.name").value("Acme"));
+                .andExpect(jsonPath("$.name").value("Acme"))
+                .andExpect(jsonPath("$.branches[0].name").value("Centro"))
+                .andExpect(jsonPath("$.branches.length()").value(1));
     }
 
     @Test
     void getReturns404WhenMissing() throws Exception {
-        when(franchises.findById(id)).thenThrow(new ResourceNotFoundException("Franchise", id));
+        when(franchises.findDetail(id)).thenThrow(new ResourceNotFoundException("Franchise", id));
 
         mvc.perform(get("/api/v1/franchises/{id}", id))
                 .andExpect(status().isNotFound())

@@ -12,6 +12,10 @@ public interface BranchRepositoryPort {
 
     Optional<Branch> findById(UUID id);
 
+    List<Branch> findAllByFranchise(UUID franchiseId);
+
+    List<BranchProductSummary> findProducts(UUID branchId);
+
     void delete(UUID branchId);
 
     Optional<BranchProduct> findProductStock(UUID branchId, UUID productId);

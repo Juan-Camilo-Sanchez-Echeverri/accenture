@@ -1,6 +1,7 @@
 package com.accenture.franchises.branch.application;
 
 import com.accenture.franchises.branch.domain.Branch;
+import com.accenture.franchises.branch.domain.BranchDetail;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.branch.domain.TopProduct;
@@ -44,8 +45,14 @@ public class BranchService {
         return branches.save(Branch.create(name, franchise.getId()));
     }
 
-    public Branch findById(UUID branchId) {
-        return getExistingBranch(branchId);
+    public List<Branch> findAllByFranchise(UUID franchiseId) {
+        getExistingFranchise(franchiseId);
+        return branches.findAllByFranchise(franchiseId);
+    }
+
+    public BranchDetail findDetail(UUID branchId) {
+        Branch branch = getExistingBranch(branchId);
+        return new BranchDetail(branch, branches.findProducts(branchId));
     }
 
     @Transactional
@@ -55,7 +62,6 @@ public class BranchService {
                 && branches.existsByNameInFranchise(name, branch.getFranchiseId())) {
             throw new DuplicateNameException(TYPE, name);
         }
-
         return branches.save(branch.rename(name));
     }
 

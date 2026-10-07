@@ -9,7 +9,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.accenture.franchises.branch.domain.Branch;
+import com.accenture.franchises.branch.domain.BranchDetail;
 import com.accenture.franchises.branch.domain.BranchProduct;
+import com.accenture.franchises.branch.domain.BranchProductSummary;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.franchise.domain.Franchise;
@@ -312,5 +314,48 @@ class BranchServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(branches, never()).findTopProductsPerBranch(any());
+    }
+
+    @Test
+    void findAllByFranchiseReturnsTheBranchesOfTheFranchise() {
+        existingFranchise();
+        Branch centro = Branch.restore(branchId, "Centro", franchiseId, now, now);
+        when(branches.findAllByFranchise(franchiseId)).thenReturn(List.of(centro));
+
+        List<Branch> result = service.findAllByFranchise(franchiseId);
+
+        assertThat(result).containsExactly(centro);
+    }
+
+    @Test
+    void findAllByFranchiseFailsWhenFranchiseIsMissing() {
+        when(franchises.findById(franchiseId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.findAllByFranchise(franchiseId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).findAllByFranchise(any());
+    }
+
+    @Test
+    void findDetailReturnsTheBranchWithItsProducts() {
+        existingBranch();
+        BranchProductSummary bigMac = new BranchProductSummary(productId, "Big Mac", 15);
+        when(branches.findProducts(branchId)).thenReturn(List.of(bigMac));
+
+        BranchDetail detail = service.findDetail(branchId);
+
+        assertThat(detail.branch().getName()).isEqualTo("Centro");
+        assertThat(detail.products()).containsExactly(bigMac);
+    }
+
+    @Test
+    void findDetailFailsWhenBranchIsMissing() {
+        when(branches.findById(branchId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.findDetail(branchId))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(branches, never()).findProducts(any());
     }
 }

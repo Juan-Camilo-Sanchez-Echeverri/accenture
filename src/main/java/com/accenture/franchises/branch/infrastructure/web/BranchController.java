@@ -1,6 +1,7 @@
 package com.accenture.franchises.branch.infrastructure.web;
 
 import com.accenture.franchises.branch.application.BranchService;
+import com.accenture.franchises.branch.infrastructure.web.dto.BranchDetailResponse;
 import com.accenture.franchises.branch.infrastructure.web.dto.BranchResponse;
 import com.accenture.franchises.branch.infrastructure.web.dto.CreateBranchProductRequest;
 import com.accenture.franchises.branch.infrastructure.web.dto.CreateBranchRequest;
@@ -64,15 +65,15 @@ public class BranchController {
         }
 
         @GetMapping("/branches/{branchId}")
-        @Operation(summary = "Obtener una sucursal", description = "Devuelve la sucursal indicada por su identificador.")
+        @Operation(summary = "Obtener una sucursal", description = "Devuelve la sucursal indicada por su identificador, con el listado de los productos que oferta.")
         @ApiResponses({
-                        @ApiResponse(responseCode = "200", description = "Sucursal encontrada.", content = @Content(schema = @Schema(implementation = BranchResponse.class))),
+                        @ApiResponse(responseCode = "200", description = "Sucursal encontrada.", content = @Content(schema = @Schema(implementation = BranchDetailResponse.class))),
                         @ApiResponse(responseCode = "400", description = INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
                         @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         })
-        public BranchResponse getBranch(
+        public BranchDetailResponse getBranch(
                         @Parameter(description = "Identificador UUID de la sucursal.", example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID branchId) {
-                return BranchResponse.from(branches.findById(branchId));
+                return BranchDetailResponse.from(branches.findDetail(branchId));
         }
 
         @PatchMapping("/branches/{branchId}")

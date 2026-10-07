@@ -2,6 +2,7 @@ package com.accenture.franchises.branch.infrastructure.persistence;
 
 import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchProduct;
+import com.accenture.franchises.branch.domain.BranchProductSummary;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
@@ -59,6 +60,23 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
     @Override
     public Optional<Branch> findById(UUID id) {
         return repository.findById(id).map(BranchJpaMapper::toDomain);
+    }
+
+    @Override
+    public List<Branch> findAllByFranchise(UUID franchiseId) {
+        return repository.findAllByFranchiseIdOrderByCreatedAtAsc(franchiseId).stream()
+                .map(BranchJpaMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<BranchProductSummary> findProducts(UUID branchId) {
+        return stock.findAllProductsByBranchId(branchId).stream()
+                .map(row -> new BranchProductSummary(
+                        row.getId().getProductId(),
+                        row.getProduct().getName(),
+                        row.getStock()))
+                .toList();
     }
 
     @Override

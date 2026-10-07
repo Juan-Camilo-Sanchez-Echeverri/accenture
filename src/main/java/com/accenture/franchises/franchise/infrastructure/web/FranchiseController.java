@@ -3,6 +3,7 @@ package com.accenture.franchises.franchise.infrastructure.web;
 import com.accenture.franchises.franchise.application.FranchiseService;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.infrastructure.web.dto.CreateFranchiseRequest;
+import com.accenture.franchises.franchise.infrastructure.web.dto.FranchiseDetailResponse;
 import com.accenture.franchises.franchise.infrastructure.web.dto.FranchiseResponse;
 import com.accenture.franchises.franchise.infrastructure.web.dto.RenameFranchiseRequest;
 import com.accenture.franchises.common.infrastructure.web.dto.PageResponse;
@@ -73,15 +74,15 @@ public class FranchiseController {
     }
 
     @GetMapping("/{franchiseId}")
-    @Operation(summary = "Obtener una franquicia", description = "Devuelve la franquicia indicada por su identificador.")
+    @Operation(summary = "Obtener una franquicia", description = "Devuelve la franquicia indicada por su identificador, junto con las sucursales que la componen.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Franquicia encontrada.", content = @Content(schema = @Schema(implementation = FranchiseResponse.class))),
+            @ApiResponse(responseCode = "200", description = "Franquicia encontrada.", content = @Content(schema = @Schema(implementation = FranchiseDetailResponse.class))),
             @ApiResponse(responseCode = "400", description = INVALID_ID, content = @Content(schema = @Schema(implementation = ProblemDetail.class))),
             @ApiResponse(responseCode = "404", description = NOT_FOUND, content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
-    public FranchiseResponse get(
+    public FranchiseDetailResponse get(
             @Parameter(description = ID_PARAMETER, example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID franchiseId) {
-        return FranchiseResponse.from(franchises.findById(franchiseId));
+        return FranchiseDetailResponse.from(franchises.findDetail(franchiseId));
     }
 
     @PatchMapping("/{franchiseId}")

@@ -12,7 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.accenture.franchises.branch.application.BranchService;
 import com.accenture.franchises.branch.domain.Branch;
+import com.accenture.franchises.branch.domain.BranchDetail;
 import com.accenture.franchises.branch.domain.BranchProduct;
+import com.accenture.franchises.branch.domain.BranchProductSummary;
 import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.common.exception.DuplicateNameException;
@@ -289,19 +291,25 @@ class BranchControllerTest {
     }
 
     @Test
-    void getBranchReturns200() throws Exception {
-        when(branches.findById(branchId)).thenReturn(branch("Centro"));
+    void getBranchReturns200WithItsProducts() throws Exception {
+        BranchDetail detail = new BranchDetail(
+                branch("Centro"),
+                List.of(new BranchProductSummary(productId, "Hamburguesa", 15)));
+        when(branches.findDetail(branchId)).thenReturn(detail);
 
         mvc.perform(get("/api/v1/branches/{branchId}", branchId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(branchId.toString()))
                 .andExpect(jsonPath("$.name").value("Centro"))
-                .andExpect(jsonPath("$.franchiseId").value(franchiseId.toString()));
+                .andExpect(jsonPath("$.franchiseId").value(franchiseId.toString()))
+                .andExpect(jsonPath("$.products[0].productName").value("Hamburguesa"))
+                .andExpect(jsonPath("$.products[0].stock").value(15))
+                .andExpect(jsonPath("$.products.length()").value(1));
     }
 
     @Test
     void getBranchReturns404WhenBranchIsMissing() throws Exception {
-        when(branches.findById(branchId))
+        when(branches.findDetail(branchId))
                 .thenThrow(new ResourceNotFoundException("Branch", branchId));
 
         mvc.perform(get("/api/v1/branches/{branchId}", branchId))
