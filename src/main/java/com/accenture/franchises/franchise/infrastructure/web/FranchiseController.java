@@ -1,5 +1,7 @@
 package com.accenture.franchises.franchise.infrastructure.web;
 
+import com.accenture.franchises.branch.application.BranchService;
+import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.franchise.application.FranchiseService;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.infrastructure.web.dto.CreateFranchiseRequest;
@@ -18,6 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -44,9 +47,11 @@ public class FranchiseController {
     private static final String DUPLICATED_NAME = "Ya existe una franquicia con ese nombre.";
 
     private final FranchiseService franchises;
+    private final BranchService branches;
 
-    public FranchiseController(FranchiseService franchises) {
+    public FranchiseController(FranchiseService franchises, BranchService branches) {
         this.franchises = franchises;
+        this.branches = branches;
     }
 
     @PostMapping
@@ -82,7 +87,9 @@ public class FranchiseController {
     })
     public FranchiseDetailResponse get(
             @Parameter(description = ID_PARAMETER, example = "0f8d1b6e-2e2f-4d3e-9b7a-1a2b3c4d5e6f") @PathVariable UUID franchiseId) {
-        return FranchiseDetailResponse.from(franchises.findDetail(franchiseId));
+        Franchise franchise = franchises.findById(franchiseId);
+        List<Branch> branchList = branches.findAllByFranchise(franchiseId);
+        return FranchiseDetailResponse.from(franchise, branchList);
     }
 
     @PatchMapping("/{franchiseId}")

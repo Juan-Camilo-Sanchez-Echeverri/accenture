@@ -7,10 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.accenture.franchises.branch.domain.Branch;
-import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.franchise.domain.Franchise;
-import com.accenture.franchises.franchise.domain.FranchiseDetail;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
@@ -32,9 +29,6 @@ class FranchiseServiceTest {
 
     @Mock
     private FranchiseRepositoryPort franchises;
-
-    @Mock
-    private BranchRepositoryPort branches;
 
     @InjectMocks
     private FranchiseService service;
@@ -89,30 +83,6 @@ class FranchiseServiceTest {
         assertThatThrownBy(() -> service.findById(id))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
-    }
-
-    @Test
-    void findDetailIncludesTheBranchesOfTheFranchise() {
-        Franchise franchise = Franchise.restore(id, "Acme", now, now);
-        Branch centro = Branch.restore(UUID.randomUUID(), "Centro", id, now, now);
-        Branch norte = Branch.restore(UUID.randomUUID(), "Norte", id, now, now);
-        when(franchises.findById(id)).thenReturn(Optional.of(franchise));
-        when(branches.findAllByFranchise(id)).thenReturn(List.of(centro, norte));
-
-        FranchiseDetail detail = service.findDetail(id);
-
-        assertThat(detail.franchise()).isSameAs(franchise);
-        assertThat(detail.branches()).containsExactly(centro, norte);
-    }
-
-    @Test
-    void findDetailFailsWhenFranchiseIsMissing() {
-        when(franchises.findById(id)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.findDetail(id))
-                .isInstanceOf(ResourceNotFoundException.class);
-
-        verify(branches, never()).findAllByFranchise(any());
     }
 
     @Test

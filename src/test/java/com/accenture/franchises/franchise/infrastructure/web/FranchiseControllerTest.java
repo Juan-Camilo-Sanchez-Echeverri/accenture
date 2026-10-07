@@ -12,10 +12,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.accenture.franchises.branch.application.BranchService;
 import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.franchise.application.FranchiseService;
 import com.accenture.franchises.franchise.domain.Franchise;
-import com.accenture.franchises.franchise.domain.FranchiseDetail;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.common.pagination.PageResult;
@@ -37,6 +37,9 @@ class FranchiseControllerTest {
 
     @MockitoBean
     private FranchiseService franchises;
+
+    @MockitoBean
+    private BranchService branches;
 
     private final UUID id = UUID.randomUUID();
     private final Instant now = Instant.parse("2026-01-01T10:00:00Z");
@@ -122,10 +125,9 @@ class FranchiseControllerTest {
 
     @Test
     void getReturns200WithTheBranchesOfTheFranchise() throws Exception {
-        FranchiseDetail detail = new FranchiseDetail(
-                franchise("Acme"),
-                List.of(Branch.restore(UUID.randomUUID(), "Centro", id, now, now)));
-        when(franchises.findDetail(id)).thenReturn(detail);
+        when(franchises.findById(id)).thenReturn(franchise("Acme"));
+        when(branches.findAllByFranchise(id))
+                .thenReturn(List.of(Branch.restore(UUID.randomUUID(), "Centro", id, now, now)));
 
         mvc.perform(get("/api/v1/franchises/{id}", id))
                 .andExpect(status().isOk())
@@ -137,7 +139,7 @@ class FranchiseControllerTest {
 
     @Test
     void getReturns404WhenMissing() throws Exception {
-        when(franchises.findDetail(id)).thenThrow(new ResourceNotFoundException("Franchise", id));
+        when(franchises.findById(id)).thenThrow(new ResourceNotFoundException("Franchise", id));
 
         mvc.perform(get("/api/v1/franchises/{id}", id))
                 .andExpect(status().isNotFound())

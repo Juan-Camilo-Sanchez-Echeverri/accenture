@@ -1,8 +1,6 @@
 package com.accenture.franchises.franchise.application;
 
-import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.franchise.domain.Franchise;
-import com.accenture.franchises.franchise.domain.FranchiseDetail;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
@@ -19,11 +17,9 @@ public class FranchiseService {
     private static final String TYPE = "Franchise";
 
     private final FranchiseRepositoryPort franchises;
-    private final BranchRepositoryPort branches;
 
-    public FranchiseService(FranchiseRepositoryPort franchises, BranchRepositoryPort branches) {
+    public FranchiseService(FranchiseRepositoryPort franchises) {
         this.franchises = franchises;
-        this.branches = branches;
     }
 
     @Transactional
@@ -40,11 +36,6 @@ public class FranchiseService {
 
     public Franchise findById(UUID id) {
         return getExisting(id);
-    }
-
-    public FranchiseDetail findDetail(UUID id) {
-        Franchise franchise = getExisting(id);
-        return new FranchiseDetail(franchise, branches.findAllByFranchise(id));
     }
 
     @Transactional

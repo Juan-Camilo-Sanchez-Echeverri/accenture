@@ -1,6 +1,7 @@
 package com.accenture.franchises.franchise.infrastructure.web.dto;
 
-import com.accenture.franchises.franchise.domain.FranchiseDetail;
+import com.accenture.franchises.branch.domain.Branch;
+import com.accenture.franchises.franchise.domain.Franchise;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.List;
@@ -17,12 +18,12 @@ public record FranchiseDetailResponse(
         @Schema(description = "Fecha y hora de la última modificación.", example = "2026-01-01T10:00:00Z")
                 Instant updatedAt) {
 
-    public static FranchiseDetailResponse from(FranchiseDetail detail) {
+    public static FranchiseDetailResponse from(Franchise franchise, List<Branch> branches) {
         return new FranchiseDetailResponse(
-                detail.franchise().getId(),
-                detail.franchise().getName(),
-                detail.branches().stream().map(BranchSummaryResponse::from).toList(),
-                detail.franchise().getCreatedAt(),
-                detail.franchise().getUpdatedAt());
+                franchise.getId(),
+                franchise.getName(),
+                branches.stream().map(BranchSummaryResponse::from).toList(),
+                franchise.getCreatedAt(),
+                franchise.getUpdatedAt());
     }
 }
