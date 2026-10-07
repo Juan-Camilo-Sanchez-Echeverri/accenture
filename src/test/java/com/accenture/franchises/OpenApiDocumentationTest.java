@@ -40,6 +40,7 @@ class OpenApiDocumentationTest {
                 .contains("Renombrar producto")
                 .contains("Eliminar producto")
                 .contains("Agregar producto a sucursal")
+                .contains("Quitar producto de sucursal")
                 .contains("Página a consultar, empezando en 0.")
                 .contains("Elementos por página, con un máximo de 100.")
                 .contains("Identificador UUID de la franquicia.");

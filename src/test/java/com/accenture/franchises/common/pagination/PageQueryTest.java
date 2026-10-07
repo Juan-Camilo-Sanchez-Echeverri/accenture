@@ -15,18 +15,19 @@ class PageQueryTest {
     }
 
     @Test
-    void clampsNegativePageToZero() {
+    void clampsPageToAtLeastZero() {
+        assertThat(PageQuery.of(0, 20).page()).isZero();
         assertThat(PageQuery.of(-1, 20).page()).isZero();
     }
 
     @Test
     void clampsLimitToOneWhenZeroOrNegative() {
-        assertThat(PageQuery.of(0, 0).limit()).isEqualTo(1);
-        assertThat(PageQuery.of(0, -5).limit()).isEqualTo(1);
+        assertThat(PageQuery.of(5, 0).limit()).isEqualTo(1);
+        assertThat(PageQuery.of(5, -5).limit()).isEqualTo(1);
     }
 
     @Test
     void capsLimitAtTheMaximum() {
-        assertThat(PageQuery.of(0, 1000).limit()).isEqualTo(PageQuery.MAX_LIMIT);
+        assertThat(PageQuery.of(1, 1000).limit()).isEqualTo(PageQuery.MAX_LIMIT);
     }
 }

@@ -78,14 +78,51 @@ Documentación interactiva de la API:
 estar en blanco y admite hasta 120 caracteres. No se puede repetir dentro de la
 misma app.
 
-`GET /api/v1/franchises` está paginado con `page` (página, empezando en 0) y
+`GET /api/v1/franchises` está paginado con `page` (página, empezando en **0**) y
 `limit` (elementos por página, máximo 100): `?page=0&limit=20`. Se ordena por
 fecha de creación de forma estable. La respuesta es un envoltorio con `items`,
 `page`, `limit`, `totalElements` y `totalPages`.
 
+### Sucursales
+
+| Método   | Ruta                                               | Descripción                                                 |
+| -------- | -------------------------------------------------- | ----------------------------------------------------------- |
+| `POST`   | `/api/v1/franchises/{franchiseId}/branches`        | Crea una sucursal dentro de la franquicia                   |
+| `POST`   | `/api/v1/branches/{branchId}/products`             | Vincula un producto del catálogo a la sucursal con su stock |
+| `DELETE` | `/api/v1/branches/{branchId}/products/{productId}` | Quita el producto de la sucursal (se descarta su stock)     |
+
+`POST` de sucursal recibe `{"name": "..."}`. El nombre es obligatorio, no puede
+estar en blanco y admite hasta 100 caracteres. No se puede repetir dentro de la
+misma franquicia.
+
+`POST /api/v1/branches/{branchId}/products` recibe
+`{"productId": "...", "stock": 10}` (stock mínimo 0): `201` al vincular, `404`
+si no existe la franquicia, la sucursal o el producto, y `409` si el producto ya
+está vinculado a esa sucursal. `DELETE` responde `204` y `404` si el vínculo no
+existe.
+
+### Productos
+
+| Método   | Ruta                    | Descripción                                            |
+| -------- | ----------------------- | ------------------------------------------------------ |
+| `POST`   | `/api/v1/products`      | Crea un producto en el catálogo global                 |
+| `GET`    | `/api/v1/products`      | Lista los productos con su stock por sucursal          |
+| `GET`    | `/api/v1/products/{id}` | Obtiene un producto con su stock por sucursal          |
+| `PATCH`  | `/api/v1/products/{id}` | Renombra un producto                                   |
+| `DELETE` | `/api/v1/products/{id}` | Elimina un producto (lo quita de todas las sucursales) |
+
+`POST` y `PATCH` reciben `{"name": "..."}` (máximo 120 caracteres). El nombre no
+se puede repetir entre productos. El catálogo se crea por separado: vincular un
+producto a una sucursal se hace con el `POST` de la sección Sucursales.
+
+`GET /api/v1/products` está paginado igual que las franquicias. Cada producto
+incluye `stocks`, la lista de sucursales donde está presente con su nombre y la
+cantidad en stock en cada una (se consulta en una sola pasada, sin perder
+rendimiento por cantidad de productos).
+
 Los errores usan `application/problem+json` (RFC 7807): `400` con el detalle por
 campo en `errors`, `404` si no existe el recurso o la ruta, `405` si el método
-no está permitido y `409` si el nombre ya existe.
+no está permitido y `409` si el nombre ya existe o el vínculo ya fue creado.
 
 ## Pruebas
 
@@ -93,6 +130,7 @@ Postgres y Redis no publican puertos, así que las pruebas corren en un
 contenedor unido a la red del stack. Con el stack levantado:
 
 ```bash
+docker compose up -d --build --wait
 docker compose -f docker-compose.test.yml run --rm test
 ```
 
@@ -113,6 +151,18 @@ com/accenture/franchises/
 │   └── infrastructure/
 │       ├── persistence/           # entidad JPA, repositorio y adapter
 │       └── web/                   # controller REST y DTOs de entrada/salida
+├── branch/                        # módulo de sucursales (incluye sucursal-producto + stock)
+│   ├── domain/                    # Branch y BranchProduct con sus puertos
+│   ├── application/               # caso de uso BranchService
+│   └── infrastructure/
+│       ├── persistence/           # entidades JPA y adapter
+│       └── web/                   # controller REST y DTOs
+├── product/                       # módulo de productos (catálogo global)
+│   ├── domain/                    # Product, ProductStock y puerto del repositorio
+│   ├── application/               # caso de uso ProductService
+│   └── infrastructure/
+│       ├── persistence/           # entidad JPA y adapter
+│       └── web/                   # controller REST y DTOs
 └── common/                        # código transversal (no es un módulo de negocio)
     ├── exception/                 # excepciones compartidas entre módulos
     ├── pagination/                # PageQuery y PageResult
@@ -138,15 +188,15 @@ A nivel de proyecto:
 
 ## Stack
 
-| Pieza         | Tecnología                                      |
-| ------------- | ----------------------------------------------- |
-| Lenguaje      | Java 21                                         |
-| Framework     | Spring Boot 4.1.1 (Spring MVC)                  |
-| Build         | Maven 3.9 con Maven Wrapper                     |
-| Persistencia  | PostgreSQL 17 con Spring Data JPA e Hibernate 6 |
-| Esquema       | Hibernate `ddl-auto=update`                     |
-| Caché         | Redis 7                                         |
-| Documentación | springdoc-openapi (Swagger UI)                  |
-| Monitoreo     | Spring Boot Actuator                            |
-| Empaquetado   | Docker (imagen multi-stage, usuario no root)    |
+| Pieza         | Tecnología                                         |
+| ------------- | -------------------------------------------------- |
+| Lenguaje      | Java 21                                            |
+| Framework     | Spring Boot 4.1.1 (Spring MVC)                     |
+| Build         | Maven 3.9 con Maven Wrapper                        |
+| Persistencia  | PostgreSQL 17 con Spring Data JPA e Hibernate 6    |
+| Esquema       | Hibernate `ddl-auto=update`                        |
+| Caché         | Redis 7                                            |
+| Documentación | springdoc-openapi (Swagger UI)                     |
+| Monitoreo     | Spring Boot Actuator                               |
+| Empaquetado   | Docker (imagen multi-stage, usuario no root)       |
 | Arquitectura  | Hexagonal por módulos (dominio, aplicación, infra) |
