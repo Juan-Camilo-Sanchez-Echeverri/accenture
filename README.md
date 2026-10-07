@@ -66,13 +66,14 @@ Documentación interactiva de la API:
 
 ### Franquicias
 
-| Método   | Ruta                      | Descripción                   |
-| -------- | ------------------------- | ----------------------------- |
-| `POST`   | `/api/v1/franchises`      | Crea una franquicia           |
-| `GET`    | `/api/v1/franchises`      | Lista todas las franquicias   |
-| `GET`    | `/api/v1/franchises/{id}` | Obtiene una franquicia por id |
-| `PATCH`  | `/api/v1/franchises/{id}` | Renombra una franquicia       |
-| `DELETE` | `/api/v1/franchises/{id}` | Elimina una franquicia        |
+| Método   | Ruta                                   | Descripción                                |
+| -------- | -------------------------------------- | ------------------------------------------ |
+| `POST`   | `/api/v1/franchises`                   | Crea una franquicia                        |
+| `GET`    | `/api/v1/franchises`                   | Lista todas las franquicias                |
+| `GET`    | `/api/v1/franchises/{id}`              | Obtiene una franquicia por id              |
+| `GET`    | `/api/v1/franchises/{id}/top-products` | El producto con más stock de cada sucursal |
+| `PATCH`  | `/api/v1/franchises/{id}`              | Renombra una franquicia                    |
+| `DELETE` | `/api/v1/franchises/{id}`              | Elimina una franquicia                     |
 
 `POST` y `PATCH` reciben `{"name": "..."}`. El nombre es obligatorio, no puede
 estar en blanco y admite hasta 120 caracteres. No se puede repetir dentro de la
@@ -88,7 +89,12 @@ fecha de creación de forma estable. La respuesta es un envoltorio con `items`,
 | Método   | Ruta                                               | Descripción                                                 |
 | -------- | -------------------------------------------------- | ----------------------------------------------------------- |
 | `POST`   | `/api/v1/franchises/{franchiseId}/branches`        | Crea una sucursal dentro de la franquicia                   |
+| `GET`    | `/api/v1/branches`                                 | Lista las sucursales paginadas, sin productos               |
+| `GET`    | `/api/v1/branches/{branchId}`                      | Obtiene una sucursal con los productos que oferta           |
+| `PATCH`  | `/api/v1/branches/{branchId}`                      | Renombra una sucursal                                       |
+| `DELETE` | `/api/v1/branches/{branchId}`                      | Elimina una sucursal                                        |
 | `POST`   | `/api/v1/branches/{branchId}/products`             | Vincula un producto del catálogo a la sucursal con su stock |
+| `PATCH`  | `/api/v1/branches/{branchId}/products/{productId}` | Cambia el stock del producto en la sucursal                 |
 | `DELETE` | `/api/v1/branches/{branchId}/products/{productId}` | Quita el producto de la sucursal (se descarta su stock)     |
 
 `POST` de sucursal recibe `{"name": "..."}`. El nombre es obligatorio, no puede
@@ -98,8 +104,12 @@ misma franquicia.
 `POST /api/v1/branches/{branchId}/products` recibe
 `{"productId": "...", "stock": 10}` (stock mínimo 0): `201` al vincular, `404`
 si no existe la franquicia, la sucursal o el producto, y `409` si el producto ya
-está vinculado a esa sucursal. `DELETE` responde `204` y `404` si el vínculo no
-existe.
+está vinculado a esa sucursal. `PATCH .../products/{productId}` recibe
+`{"stock": 5}` y responde `200` con el stock actualizado. `DELETE` responde `204`
+y `404` si el vínculo no existe.
+
+`GET /api/v1/branches` está paginado igual que el de franquicias (`?page=0&limit=20`),
+con el mismo envoltorio `items`, `page`, `limit`, `totalElements` y `totalPages`.
 
 ### Productos
 
@@ -123,6 +133,34 @@ rendimiento por cantidad de productos).
 Los errores usan `application/problem+json` (RFC 7807): `400` con el detalle por
 campo en `errors`, `404` si no existe el recurso o la ruta, `405` si el método
 no está permitido y `409` si el nombre ya existe o el vínculo ya fue creado.
+
+## Caché
+
+El producto con más stock por sucursal (top-products) se cachea en Redis con
+**Jedis** usando el cliente `RedisClient`
+
+- **Key**: `franchise:top-products:{franchiseId}`
+- **TTL**: 60 segundos por defecto (`top-products.cache.ttl-seconds`)
+- **Invalidación**: cualquier mutación que afecte a las sucursales de la
+  franquicia la borra en Redis para que el siguiente GET regenere el valor:
+  alta/renombrado/baja de sucursal, vincular o desvincular producto y cambio de
+  stock.
+- **Tolerancia a fallos**: si Redis no responde, el endpoint calcula el resultado
+  contra la base de datos y la API sigue funcionando (se registra un warning).
+
+Configuración vía variables de entorno:
+
+| Variable         | Local (docker compose) | Redis Cloud (redis.io)                                                    |
+| ---------------- | ---------------------- | ------------------------------------------------------------------------- |
+| `REDIS_HOST`     | `redis`                | el host público de tu instancia, p. ej. `redis-XXXXX.cloud.redislabs.com` |
+| `REDIS_PORT`     | `6379`                 | el puerto de la instancia                                                 |
+| `REDIS_PASSWORD` | vacío                  | la contraseña de la instancia (autentica como el usuario `default`)       |
+
+`redis` es el nombre del servicio dentro de la red de Docker y solo se resuelve
+desde otro contenedor del stack; si corres la app en tu máquina, usa
+`localhost` (o el host de la nube). Cuando `REDIS_PASSWORD` trae valor, el
+cliente autentica como el usuario `default`, igual que en el quickstart de
+redis.io.
 
 ## Pruebas
 
@@ -150,6 +188,7 @@ com/accenture/franchises/
 │   ├── application/               # caso de uso FranchiseService
 │   └── infrastructure/
 │       ├── persistence/           # entidad JPA, repositorio y adapter
+│       ├── redis/                 # TopProductCache (JSON en Redis)
 │       └── web/                   # controller REST y DTOs de entrada/salida
 ├── branch/                        # módulo de sucursales (incluye sucursal-producto + stock)
 │   ├── domain/                    # Branch y BranchProduct con sus puertos
@@ -164,9 +203,12 @@ com/accenture/franchises/
 │       ├── persistence/           # entidad JPA y adapter
 │       └── web/                   # controller REST y DTOs
 └── common/                        # código transversal (no es un módulo de negocio)
+    ├── cache/                     # CachePort y CacheKeys (API de caché compartida)
     ├── exception/                 # excepciones compartidas entre módulos
     ├── pagination/                # PageQuery y PageResult
-    └── infrastructure/web/        # GlobalExceptionHandler y PageResponse
+    └── infrastructure/
+        ├── redis/                 # JedisConfig (RedisClient) y JedisCache
+        └── web/                   # GlobalExceptionHandler y PageResponse
 ```
 
 A nivel de proyecto:
@@ -195,7 +237,7 @@ A nivel de proyecto:
 | Build         | Maven 3.9 con Maven Wrapper                        |
 | Persistencia  | PostgreSQL 17 con Spring Data JPA e Hibernate 6    |
 | Esquema       | Hibernate `ddl-auto=update`                        |
-| Caché         | Redis 7                                            |
+| Caché         | Redis 7 con Jedis (RedisClient)                    |
 | Documentación | springdoc-openapi (Swagger UI)                     |
 | Monitoreo     | Spring Boot Actuator                               |
 | Empaquetado   | Docker (imagen multi-stage, usuario no root)       |
