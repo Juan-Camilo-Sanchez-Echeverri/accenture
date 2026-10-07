@@ -15,6 +15,8 @@ import com.accenture.franchises.branch.domain.BranchProductSummary;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
+import com.accenture.franchises.common.cache.CacheKeys;
+import com.accenture.franchises.common.cache.CachePort;
 import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
@@ -43,6 +45,9 @@ class BranchServiceTest {
 
     @Mock
     private ProductRepositoryPort products;
+
+    @Mock
+    private CachePort cache;
 
     @InjectMocks
     private BranchService service;
@@ -78,6 +83,7 @@ class BranchServiceTest {
         assertThat(created.getName()).isEqualTo("Centro");
         assertThat(created.getFranchiseId()).isEqualTo(franchiseId);
         assertThat(created.getId()).isNull();
+        verify(cache).delete(CacheKeys.topProducts(franchiseId));
     }
 
     @Test
@@ -111,6 +117,7 @@ class BranchServiceTest {
 
         assertThat(renamed.getName()).isEqualTo("Norte");
         verify(branches).save(any());
+        verify(cache).delete(CacheKeys.topProducts(franchiseId));
     }
 
     @Test
@@ -123,6 +130,7 @@ class BranchServiceTest {
         assertThat(renamed.getName()).isEqualTo("centro");
         verify(branches, never()).existsByNameInFranchise(any(), any());
         verify(branches).save(any());
+        verify(cache).delete(CacheKeys.topProducts(franchiseId));
     }
 
     @Test
@@ -143,6 +151,7 @@ class BranchServiceTest {
         service.delete(branchId);
 
         verify(branches).delete(branchId);
+        verify(cache).delete(CacheKeys.topProducts(franchiseId));
     }
 
     @Test
@@ -168,6 +177,7 @@ class BranchServiceTest {
         assertThat(linked.getBranchId()).isEqualTo(branchId);
         assertThat(linked.getProductId()).isEqualTo(productId);
         assertThat(linked.getStock()).isEqualTo(10);
+        verify(cache).delete(CacheKeys.topProducts(franchiseId));
     }
 
     @Test
@@ -214,6 +224,7 @@ class BranchServiceTest {
         service.removeProduct(branchId, productId);
 
         verify(branches).removeProduct(branchId, productId);
+        verify(cache).delete(CacheKeys.topProducts(franchiseId));
     }
 
     @Test
@@ -261,6 +272,7 @@ class BranchServiceTest {
         BranchProduct updated = service.updateStock(branchId, productId, 25);
 
         assertThat(updated.getStock()).isEqualTo(25);
+        verify(cache).delete(CacheKeys.topProducts(franchiseId));
     }
 
     @Test

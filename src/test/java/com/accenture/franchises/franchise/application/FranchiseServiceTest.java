@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
 import com.accenture.franchises.franchise.domain.TopProduct;
+import com.accenture.franchises.franchise.domain.TopProductCachePort;
 import com.accenture.franchises.franchise.domain.TopProductPerBranchPort;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
@@ -34,6 +35,9 @@ class FranchiseServiceTest {
 
     @Mock
     private TopProductPerBranchPort topProducts;
+
+    @Mock
+    private TopProductCachePort topProductCache;
 
     @InjectMocks
     private FranchiseService service;
@@ -129,9 +133,25 @@ class FranchiseServiceTest {
     void topProductsPerBranchReturnsTheBestProductOfEachBranch() {
         when(franchises.findById(id)).thenReturn(Optional.of(Franchise.restore(id, "Acme", now, now)));
         TopProduct expected = new TopProduct(UUID.randomUUID(), "Centro", UUID.randomUUID(), "Hamburguesa", 40);
+        when(topProductCache.get(id)).thenReturn(Optional.empty());
         when(topProducts.findTopProductPerBranch(id)).thenReturn(List.of(expected));
 
+        List<TopProduct> top = service.topProductsPerBranch(id);
+
+        assertThat(top).containsExactly(expected);
+        verify(topProductCache).put(id, List.of(expected));
+    }
+
+    @Test
+    void topProductsPerBranchReadsTheCachedResult() {
+        when(franchises.findById(id)).thenReturn(Optional.of(Franchise.restore(id, "Acme", now, now)));
+        TopProduct expected = new TopProduct(UUID.randomUUID(), "Centro", UUID.randomUUID(), "Hamburguesa", 40);
+        when(topProductCache.get(id)).thenReturn(Optional.of(List.of(expected)));
+
         assertThat(service.topProductsPerBranch(id)).containsExactly(expected);
+
+        verify(topProducts, never()).findTopProductPerBranch(any());
+        verify(topProductCache, never()).put(any(), any());
     }
 
     @Test
@@ -141,6 +161,7 @@ class FranchiseServiceTest {
         assertThatThrownBy(() -> service.topProductsPerBranch(id))
                 .isInstanceOf(ResourceNotFoundException.class);
 
+        verify(topProductCache, never()).get(any());
         verify(topProducts, never()).findTopProductPerBranch(any());
     }
 

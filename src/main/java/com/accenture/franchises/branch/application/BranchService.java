@@ -4,6 +4,8 @@ import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchDetail;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
+import com.accenture.franchises.common.cache.CacheKeys;
+import com.accenture.franchises.common.cache.CachePort;
 import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.common.pagination.PageQuery;
 import com.accenture.franchises.common.pagination.PageResult;
@@ -27,14 +29,17 @@ public class BranchService {
     private final BranchRepositoryPort branches;
     private final FranchiseRepositoryPort franchises;
     private final ProductRepositoryPort products;
+    private final CachePort cache;
 
     public BranchService(
             BranchRepositoryPort branches,
             FranchiseRepositoryPort franchises,
-            ProductRepositoryPort products) {
+            ProductRepositoryPort products,
+            CachePort cache) {
         this.branches = branches;
         this.franchises = franchises;
         this.products = products;
+        this.cache = cache;
     }
 
     @Transactional
@@ -43,7 +48,9 @@ public class BranchService {
         if (branches.existsByNameInFranchise(name, franchise.getId())) {
             throw new DuplicateNameException(TYPE, name);
         }
-        return branches.save(Branch.create(name, franchise.getId()));
+        Branch branch = branches.save(Branch.create(name, franchise.getId()));
+        cache.delete(CacheKeys.topProducts(franchiseId));
+        return branch;
     }
 
     public List<Branch> findAllByFranchise(UUID franchiseId) {
@@ -67,13 +74,16 @@ public class BranchService {
                 && branches.existsByNameInFranchise(name, branch.getFranchiseId())) {
             throw new DuplicateNameException(TYPE, name);
         }
-        return branches.save(branch.rename(name));
+        Branch renamed = branches.save(branch.rename(name));
+        cache.delete(CacheKeys.topProducts(branch.getFranchiseId()));
+        return renamed;
     }
 
     @Transactional
     public void delete(UUID branchId) {
-        getExistingBranch(branchId);
+        Branch branch = getExistingBranch(branchId);
         branches.delete(branchId);
+        cache.delete(CacheKeys.topProducts(branch.getFranchiseId()));
     }
 
     @Transactional
@@ -83,12 +93,14 @@ public class BranchService {
         if (branches.findProductStock(branch.getId(), product.getId()).isPresent()) {
             throw new ConflictException("Product %s is already added to branch %s".formatted(productId, branchId));
         }
-        return branches.addProduct(branch.getId(), product.getId(), stock);
+        BranchProduct linked = branches.addProduct(branch.getId(), product.getId(), stock);
+        cache.delete(CacheKeys.topProducts(branch.getFranchiseId()));
+        return linked;
     }
 
     @Transactional
     public void removeProduct(UUID branchId, UUID productId) {
-        getExistingBranch(branchId);
+        Branch branch = getExistingBranch(branchId);
         getExistingProduct(productId);
 
         if (branches.findProductStock(branchId, productId).isEmpty()) {
@@ -96,18 +108,21 @@ public class BranchService {
         }
 
         branches.removeProduct(branchId, productId);
+        cache.delete(CacheKeys.topProducts(branch.getFranchiseId()));
     }
 
     @Transactional
     public BranchProduct updateStock(UUID branchId, UUID productId, int stock) {
-        getExistingBranch(branchId);
+        Branch branch = getExistingBranch(branchId);
         getExistingProduct(productId);
 
         if (branches.findProductStock(branchId, productId).isEmpty()) {
             throw new ResourceNotFoundException("Product %s is not linked to branch %s".formatted(productId, branchId));
         }
 
-        return branches.updateStock(branchId, productId, stock);
+        BranchProduct updated = branches.updateStock(branchId, productId, stock);
+        cache.delete(CacheKeys.topProducts(branch.getFranchiseId()));
+        return updated;
     }
 
     private Branch getExistingBranch(UUID branchId) {

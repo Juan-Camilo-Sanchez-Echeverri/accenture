@@ -3,12 +3,14 @@ package com.accenture.franchises.franchise.application;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
 import com.accenture.franchises.franchise.domain.TopProduct;
+import com.accenture.franchises.franchise.domain.TopProductCachePort;
 import com.accenture.franchises.franchise.domain.TopProductPerBranchPort;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.common.pagination.PageQuery;
 import com.accenture.franchises.common.pagination.PageResult;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,10 +23,15 @@ public class FranchiseService {
 
     private final FranchiseRepositoryPort franchises;
     private final TopProductPerBranchPort topProducts;
+    private final TopProductCachePort topProductCache;
 
-    public FranchiseService(FranchiseRepositoryPort franchises, TopProductPerBranchPort topProducts) {
+    public FranchiseService(
+            FranchiseRepositoryPort franchises,
+            TopProductPerBranchPort topProducts,
+            TopProductCachePort topProductCache) {
         this.franchises = franchises;
         this.topProducts = topProducts;
+        this.topProductCache = topProductCache;
     }
 
     @Transactional
@@ -60,7 +67,14 @@ public class FranchiseService {
 
     public List<TopProduct> topProductsPerBranch(UUID franchiseId) {
         getExisting(franchiseId);
-        return topProducts.findTopProductPerBranch(franchiseId);
+        Optional<List<TopProduct>> cached = topProductCache.get(franchiseId);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        List<TopProduct> computed = topProducts.findTopProductPerBranch(franchiseId);
+        topProductCache.put(franchiseId, computed);
+        return computed;
     }
 
     private Franchise getExisting(UUID id) {
