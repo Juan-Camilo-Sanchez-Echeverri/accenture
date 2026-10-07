@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaEntity;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
+import com.accenture.franchises.product.infrastructure.persistence.ProductJpaEntity;
+import com.accenture.franchises.product.infrastructure.persistence.ProductJpaRepository;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,13 +29,21 @@ class BranchRepositoryAdapterTest {
     private BranchJpaRepository branchRepository;
 
     @Autowired
+    private BranchProductJpaRepository stockRepository;
+
+    @Autowired
     private FranchiseJpaRepository franchiseRepository;
 
+    @Autowired
+    private ProductJpaRepository productRepository;
+
     private UUID franchiseId;
+    private UUID productId;
 
     @BeforeEach
     void setUp() {
         franchiseId = franchiseRepository.saveAndFlush(new FranchiseJpaEntity("Acme")).getId();
+        productId = productRepository.saveAndFlush(new ProductJpaEntity("Hamburguesa")).getId();
     }
 
     @Test
@@ -85,5 +95,30 @@ class BranchRepositoryAdapterTest {
         franchiseRepository.flush();
 
         assertThat(branchRepository.count()).isZero();
+    }
+
+    @Test
+    void addProductPersistsTheStock() {
+        UUID branchId = adapter.save(Branch.create("Centro", franchiseId)).getId();
+
+        adapter.addProduct(branchId, productId, 12);
+
+        assertThat(stockRepository.count()).isEqualTo(1);
+        Branch reloaded = adapter.findById(branchId).orElseThrow();
+        assertThat(adapter.findProductStock(reloaded.getId(), productId).orElseThrow().getStock()).isEqualTo(12);
+    }
+
+    @Test
+    void databaseRejectsDuplicatedProductInSameBranch() {
+        UUID branchId = adapter.save(Branch.create("Centro", franchiseId)).getId();
+        adapter.addProduct(branchId, productId, 5);
+
+        assertThatThrownBy(() -> adapter.addProduct(branchId, productId, 9))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void findProductStockIsEmptyWhenTheLinkDoesNotExist() {
+        assertThat(adapter.findProductStock(UUID.randomUUID(), productId)).isEmpty();
     }
 }

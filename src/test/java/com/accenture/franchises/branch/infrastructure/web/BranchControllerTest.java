@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.accenture.franchises.branch.application.BranchService;
 import com.accenture.franchises.branch.domain.Branch;
+import com.accenture.franchises.branch.domain.BranchProduct;
+import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import java.time.Instant;
@@ -30,10 +32,19 @@ class BranchControllerTest {
 
     private final UUID franchiseId = UUID.randomUUID();
     private final UUID branchId = UUID.randomUUID();
+    private final UUID productId = UUID.randomUUID();
     private final Instant now = Instant.parse("2026-01-01T10:00:00Z");
 
     private Branch branch(String name) {
         return Branch.restore(branchId, name, franchiseId, now, now);
+    }
+
+    private BranchProduct stock(int quantity) {
+        return BranchProduct.restore(branchId, productId, quantity);
+    }
+
+    private String productLinkBody(int stock) {
+        return "{\"productId\":\"" + productId + "\",\"stock\":" + stock + "}";
     }
 
     @Test
@@ -88,6 +99,60 @@ class BranchControllerTest {
         mvc.perform(post("/api/v1/franchises/not-a-uuid/branches")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Centro\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addProductReturns201WithLocation() throws Exception {
+        when(branches.addProduct(branchId, productId, 10)).thenReturn(stock(10));
+
+        mvc.perform(post("/api/v1/branches/{branchId}/products", branchId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(productLinkBody(10)))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/v1/branches/" + branchId + "/products/" + productId))
+                .andExpect(jsonPath("$.branchId").value(branchId.toString()))
+                .andExpect(jsonPath("$.productId").value(productId.toString()))
+                .andExpect(jsonPath("$.stock").value(10));
+    }
+
+    @Test
+    void addProductReturns404WhenBranchIsMissing() throws Exception {
+        when(branches.addProduct(branchId, productId, 10))
+                .thenThrow(new ResourceNotFoundException("Branch", branchId));
+
+        mvc.perform(post("/api/v1/branches/{branchId}/products", branchId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(productLinkBody(10)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Resource not found"));
+    }
+
+    @Test
+    void addProductReturns409WhenAlreadyLinked() throws Exception {
+        when(branches.addProduct(branchId, productId, 10))
+                .thenThrow(new ConflictException("Product " + productId + " is already added to branch " + branchId));
+
+        mvc.perform(post("/api/v1/branches/{branchId}/products", branchId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(productLinkBody(10)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Conflict"));
+    }
+
+    @Test
+    void addProductRejectsNegativeStock() throws Exception {
+        mvc.perform(post("/api/v1/branches/{branchId}/products", branchId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productId\":\"" + productId + "\",\"stock\":-1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addProductReturns400OnMalformedBranchId() throws Exception {
+        mvc.perform(post("/api/v1/branches/not-a-uuid/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(productLinkBody(10)))
                 .andExpect(status().isBadRequest());
     }
 }

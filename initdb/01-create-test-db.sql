@@ -1,0 +1,1 @@
+CREATE DATABASE franchise_test OWNER franchise;

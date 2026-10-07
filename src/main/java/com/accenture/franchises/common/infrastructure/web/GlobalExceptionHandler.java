@@ -1,5 +1,6 @@
 package com.accenture.franchises.common.infrastructure.web;
 
+import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import java.util.LinkedHashMap;
@@ -32,6 +33,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateNameException.class)
     ResponseEntity<ProblemDetail> handleDuplicate(DuplicateNameException ex) {
         return problem(HttpStatus.CONFLICT, "Duplicate name", ex.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    ResponseEntity<ProblemDetail> handleConflict(ConflictException ex) {
+        return problem(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
