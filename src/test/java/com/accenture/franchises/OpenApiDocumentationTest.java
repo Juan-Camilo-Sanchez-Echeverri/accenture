@@ -31,6 +31,8 @@ class OpenApiDocumentationTest {
                 .contains("Obtener una franquicia")
                 .contains("Renombrar franquicia")
                 .contains("Eliminar franquicia")
+                .contains("Sucursales de una franquicia.")
+                .contains("Agregar sucursal")
                 .contains("Página a consultar, empezando en 0.")
                 .contains("Elementos por página, con un máximo de 100.")
                 .contains("Identificador UUID de la franquicia.");
