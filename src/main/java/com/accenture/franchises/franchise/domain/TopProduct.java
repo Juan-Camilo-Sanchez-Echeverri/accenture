@@ -1,4 +1,4 @@
-package com.accenture.franchises.branch.domain;
+package com.accenture.franchises.franchise.domain;
 
 import java.util.UUID;
 

@@ -4,8 +4,9 @@ import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchDetail;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
-import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.common.exception.ConflictException;
+import com.accenture.franchises.common.pagination.PageQuery;
+import com.accenture.franchises.common.pagination.PageResult;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
 import com.accenture.franchises.common.exception.DuplicateNameException;
@@ -53,6 +54,10 @@ public class BranchService {
     public BranchDetail findDetail(UUID branchId) {
         Branch branch = getExistingBranch(branchId);
         return new BranchDetail(branch, branches.findProducts(branchId));
+    }
+
+    public PageResult<Branch> findAll(PageQuery query) {
+        return branches.findAll(query);
     }
 
     @Transactional
@@ -103,11 +108,6 @@ public class BranchService {
         }
 
         return branches.updateStock(branchId, productId, stock);
-    }
-
-    public List<TopProduct> topProductsPerBranch(UUID franchiseId) {
-        getExistingFranchise(franchiseId);
-        return branches.findTopProductsPerBranch(franchiseId);
     }
 
     private Branch getExistingBranch(UUID branchId) {

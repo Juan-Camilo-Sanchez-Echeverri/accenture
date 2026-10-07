@@ -4,17 +4,19 @@ import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchProductSummary;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
-import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
+import com.accenture.franchises.common.pagination.PageQuery;
+import com.accenture.franchises.common.pagination.PageResult;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
 import com.accenture.franchises.product.infrastructure.persistence.ProductJpaRepository;
 import jakarta.persistence.EntityManager;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -70,6 +72,18 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
     }
 
     @Override
+    public PageResult<Branch> findAll(PageQuery query) {
+        Pageable pageable = PageRequest.of(query.page(), query.limit(), Sort.by(Sort.Direction.ASC, "createdAt"));
+        Page<BranchJpaEntity> page = repository.findAll(pageable);
+
+        return PageResult.of(
+                page.getContent().stream().map(BranchJpaMapper::toDomain).toList(),
+                query.page(),
+                query.limit(),
+                page.getTotalElements());
+    }
+
+    @Override
     public List<BranchProductSummary> findProducts(UUID branchId) {
         return stock.findAllProductsByBranchId(branchId).stream()
                 .map(row -> new BranchProductSummary(
@@ -115,27 +129,6 @@ public class BranchRepositoryAdapter implements BranchRepositoryPort {
         entity.setStock(quantity);
         entityManager.flush();
         return BranchProductJpaMapper.toDomain(entity);
-    }
-
-    @Override
-    public List<TopProduct> findTopProductsPerBranch(UUID franchiseId) {
-        Map<UUID, TopProduct> bestByBranch = new HashMap<>();
-        for (BranchProductJpaEntity row : stock.findAllByBranchFranchiseId(franchiseId)) {
-            UUID branchId = row.getId().getBranchId();
-            TopProduct candidate = new TopProduct(
-                    branchId,
-                    row.getBranch().getName(),
-                    row.getId().getProductId(),
-                    row.getProduct().getName(),
-                    row.getStock());
-            TopProduct current = bestByBranch.get(branchId);
-            if (current == null || candidate.stock() > current.stock()) {
-                bestByBranch.put(branchId, candidate);
-            }
-        }
-        return bestByBranch.values().stream()
-                .sorted(Comparator.comparing(TopProduct::branchName))
-                .toList();
     }
 
     private BranchJpaEntity renameExisting(UUID branchId, String name) {

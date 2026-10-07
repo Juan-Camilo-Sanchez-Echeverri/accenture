@@ -1,5 +1,6 @@
 package com.accenture.franchises.branch.infrastructure.web;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -15,10 +16,10 @@ import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.branch.domain.BranchDetail;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchProductSummary;
-import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
+import com.accenture.franchises.common.pagination.PageResult;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -109,6 +110,34 @@ class BranchControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"name\":\"Centro\"}"))
                                 .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void listBranchesReturnsPageMetadataWithoutProducts() throws Exception {
+                when(branches.findAll(any())).thenReturn(
+                                PageResult.of(List.of(branch("Centro"), branch("Norte")), 0, 2, 5));
+
+                mvc.perform(get("/api/v1/branches?page=0&limit=2"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.items.length()").value(2))
+                                .andExpect(jsonPath("$.items[0].name").value("Centro"))
+                                .andExpect(jsonPath("$.items[0].products").doesNotExist())
+                                .andExpect(jsonPath("$.page").value(0))
+                                .andExpect(jsonPath("$.limit").value(2))
+                                .andExpect(jsonPath("$.totalElements").value(5))
+                                .andExpect(jsonPath("$.totalPages").value(3));
+        }
+
+        @Test
+        void listBranchesAppliesDefaultPagingWhenNoParamsAreGiven() throws Exception {
+                when(branches.findAll(any())).thenReturn(PageResult.of(List.of(), 0, 20, 0));
+
+                mvc.perform(get("/api/v1/branches"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.page").value(0))
+                                .andExpect(jsonPath("$.limit").value(20))
+                                .andExpect(jsonPath("$.totalElements").value(0))
+                                .andExpect(jsonPath("$.totalPages").value(0));
         }
 
         @Test
@@ -252,138 +281,108 @@ class BranchControllerTest {
                                 .andExpect(jsonPath("$.title").value("Resource not found"));
         }
 
-@Test
-    void updateStockReturns400OnMalformedProductId() throws Exception {
-        mvc.perform(patch("/api/v1/branches/{branchId}/products/not-a-uuid", branchId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"stock\":25}"))
-                .andExpect(status().isBadRequest());
-    }
+        @Test
+        void updateStockReturns400OnMalformedProductId() throws Exception {
+                mvc.perform(patch("/api/v1/branches/{branchId}/products/not-a-uuid", branchId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"stock\":25}"))
+                                .andExpect(status().isBadRequest());
+        }
 
-    @Test
-    void topProductsReturns200WithOneProductPerBranch() throws Exception {
-        when(branches.topProductsPerBranch(franchiseId)).thenReturn(List.of(
-                new TopProduct(branchId, "Centro", productId, "Hamburguesa", 40)));
+        @Test
+        void getBranchReturns200WithItsProducts() throws Exception {
+                BranchDetail detail = new BranchDetail(
+                                branch("Centro"),
+                                List.of(new BranchProductSummary(productId, "Hamburguesa", 15)));
+                when(branches.findDetail(branchId)).thenReturn(detail);
 
-        mvc.perform(get("/api/v1/franchises/{franchiseId}/top-products", franchiseId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].branchId").value(branchId.toString()))
-                .andExpect(jsonPath("$[0].branchName").value("Centro"))
-                .andExpect(jsonPath("$[0].productId").value(productId.toString()))
-                .andExpect(jsonPath("$[0].productName").value("Hamburguesa"))
-                .andExpect(jsonPath("$[0].stock").value(40));
-    }
+                mvc.perform(get("/api/v1/branches/{branchId}", branchId))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.id").value(branchId.toString()))
+                                .andExpect(jsonPath("$.name").value("Centro"))
+                                .andExpect(jsonPath("$.franchiseId").value(franchiseId.toString()))
+                                .andExpect(jsonPath("$.products[0].productName").value("Hamburguesa"))
+                                .andExpect(jsonPath("$.products[0].stock").value(15))
+                                .andExpect(jsonPath("$.products.length()").value(1));
+        }
 
-    @Test
-    void topProductsReturns404WhenFranchiseIsMissing() throws Exception {
-        when(branches.topProductsPerBranch(franchiseId))
-                .thenThrow(new ResourceNotFoundException("Franchise", franchiseId));
+        @Test
+        void getBranchReturns404WhenBranchIsMissing() throws Exception {
+                when(branches.findDetail(branchId))
+                                .thenThrow(new ResourceNotFoundException("Branch", branchId));
 
-        mvc.perform(get("/api/v1/franchises/{franchiseId}/top-products", franchiseId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Resource not found"));
-    }
+                mvc.perform(get("/api/v1/branches/{branchId}", branchId))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.title").value("Resource not found"));
+        }
 
-    @Test
-    void topProductsReturns400OnMalformedFranchiseId() throws Exception {
-        mvc.perform(get("/api/v1/franchises/not-a-uuid/top-products"))
-                .andExpect(status().isBadRequest());
-    }
+        @Test
+        void getBranchReturns400OnMalformedBranchId() throws Exception {
+                mvc.perform(get("/api/v1/branches/not-a-uuid"))
+                                .andExpect(status().isBadRequest());
+        }
 
-    @Test
-    void getBranchReturns200WithItsProducts() throws Exception {
-        BranchDetail detail = new BranchDetail(
-                branch("Centro"),
-                List.of(new BranchProductSummary(productId, "Hamburguesa", 15)));
-        when(branches.findDetail(branchId)).thenReturn(detail);
+        @Test
+        void renameBranchReturns200WithTheNewName() throws Exception {
+                when(branches.rename(branchId, "Norte")).thenReturn(branch("Norte"));
 
-        mvc.perform(get("/api/v1/branches/{branchId}", branchId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(branchId.toString()))
-                .andExpect(jsonPath("$.name").value("Centro"))
-                .andExpect(jsonPath("$.franchiseId").value(franchiseId.toString()))
-                .andExpect(jsonPath("$.products[0].productName").value("Hamburguesa"))
-                .andExpect(jsonPath("$.products[0].stock").value(15))
-                .andExpect(jsonPath("$.products.length()").value(1));
-    }
+                mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\":\"Norte\"}"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name").value("Norte"));
+        }
 
-    @Test
-    void getBranchReturns404WhenBranchIsMissing() throws Exception {
-        when(branches.findDetail(branchId))
-                .thenThrow(new ResourceNotFoundException("Branch", branchId));
+        @Test
+        void renameBranchReturns409OnDuplicatedName() throws Exception {
+                when(branches.rename(branchId, "Norte"))
+                                .thenThrow(new DuplicateNameException("Branch", "Norte"));
 
-        mvc.perform(get("/api/v1/branches/{branchId}", branchId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Resource not found"));
-    }
+                mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\":\"Norte\"}"))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.title").value("Duplicate name"));
+        }
 
-    @Test
-    void getBranchReturns400OnMalformedBranchId() throws Exception {
-        mvc.perform(get("/api/v1/branches/not-a-uuid"))
-                .andExpect(status().isBadRequest());
-    }
+        @Test
+        void renameBranchReturns404WhenBranchIsMissing() throws Exception {
+                when(branches.rename(branchId, "Norte"))
+                                .thenThrow(new ResourceNotFoundException("Branch", branchId));
 
-    @Test
-    void renameBranchReturns200WithTheNewName() throws Exception {
-        when(branches.rename(branchId, "Norte")).thenReturn(branch("Norte"));
+                mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\":\"Norte\"}"))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.title").value("Resource not found"));
+        }
 
-        mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Norte\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Norte"));
-    }
+        @Test
+        void renameBranchRejectsBlankName() throws Exception {
+                mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\":\"  \"}"))
+                                .andExpect(status().isBadRequest());
+        }
 
-    @Test
-    void renameBranchReturns409OnDuplicatedName() throws Exception {
-        when(branches.rename(branchId, "Norte"))
-                .thenThrow(new DuplicateNameException("Branch", "Norte"));
+        @Test
+        void deleteBranchReturns204() throws Exception {
+                mvc.perform(delete("/api/v1/branches/{branchId}", branchId))
+                                .andExpect(status().isNoContent());
+        }
 
-        mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Norte\"}"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.title").value("Duplicate name"));
-    }
+        @Test
+        void deleteBranchReturns404WhenBranchIsMissing() throws Exception {
+                doThrow(new ResourceNotFoundException("Branch", branchId)).when(branches).delete(branchId);
 
-    @Test
-    void renameBranchReturns404WhenBranchIsMissing() throws Exception {
-        when(branches.rename(branchId, "Norte"))
-                .thenThrow(new ResourceNotFoundException("Branch", branchId));
+                mvc.perform(delete("/api/v1/branches/{branchId}", branchId))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.title").value("Resource not found"));
+        }
 
-        mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Norte\"}"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Resource not found"));
-    }
-
-    @Test
-    void renameBranchRejectsBlankName() throws Exception {
-        mvc.perform(patch("/api/v1/branches/{branchId}", branchId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"  \"}"))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void deleteBranchReturns204() throws Exception {
-        mvc.perform(delete("/api/v1/branches/{branchId}", branchId))
-                .andExpect(status().isNoContent());
-    }
-
-    @Test
-    void deleteBranchReturns404WhenBranchIsMissing() throws Exception {
-        doThrow(new ResourceNotFoundException("Branch", branchId)).when(branches).delete(branchId);
-
-        mvc.perform(delete("/api/v1/branches/{branchId}", branchId))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Resource not found"));
-    }
-
-    @Test
-    void deleteBranchReturns400OnMalformedBranchId() throws Exception {
-        mvc.perform(delete("/api/v1/branches/not-a-uuid"))
-                .andExpect(status().isBadRequest());
-    }
+        @Test
+        void deleteBranchReturns400OnMalformedBranchId() throws Exception {
+                mvc.perform(delete("/api/v1/branches/not-a-uuid"))
+                                .andExpect(status().isBadRequest());
+        }
 }

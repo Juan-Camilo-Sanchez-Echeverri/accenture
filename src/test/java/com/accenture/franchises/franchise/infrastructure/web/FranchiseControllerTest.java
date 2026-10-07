@@ -16,6 +16,7 @@ import com.accenture.franchises.branch.application.BranchService;
 import com.accenture.franchises.branch.domain.Branch;
 import com.accenture.franchises.franchise.application.FranchiseService;
 import com.accenture.franchises.franchise.domain.Franchise;
+import com.accenture.franchises.franchise.domain.TopProduct;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.common.pagination.PageResult;
@@ -172,5 +173,33 @@ class FranchiseControllerTest {
         doThrow(new ResourceNotFoundException("Franchise", id)).when(franchises).delete(id);
 
         mvc.perform(delete("/api/v1/franchises/{id}", id)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void topProductsReturns200WithOneProductPerBranch() throws Exception {
+        when(franchises.topProductsPerBranch(id)).thenReturn(List.of(
+                new TopProduct(UUID.randomUUID(), "Centro", UUID.randomUUID(), "Hamburguesa", 40)));
+
+        mvc.perform(get("/api/v1/franchises/{id}/top-products", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].branchName").value("Centro"))
+                .andExpect(jsonPath("$[0].productName").value("Hamburguesa"))
+                .andExpect(jsonPath("$[0].stock").value(40));
+    }
+
+    @Test
+    void topProductsReturns404WhenFranchiseIsMissing() throws Exception {
+        when(franchises.topProductsPerBranch(id))
+                .thenThrow(new ResourceNotFoundException("Franchise", id));
+
+        mvc.perform(get("/api/v1/franchises/{id}/top-products", id))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.title").value("Resource not found"));
+    }
+
+    @Test
+    void topProductsReturns400OnMalformedId() throws Exception {
+        mvc.perform(get("/api/v1/franchises/not-a-uuid/top-products"))
+                .andExpect(status().isBadRequest());
     }
 }

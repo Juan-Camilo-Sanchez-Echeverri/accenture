@@ -13,12 +13,13 @@ import com.accenture.franchises.branch.domain.BranchDetail;
 import com.accenture.franchises.branch.domain.BranchProduct;
 import com.accenture.franchises.branch.domain.BranchProductSummary;
 import com.accenture.franchises.branch.domain.BranchRepositoryPort;
-import com.accenture.franchises.branch.domain.TopProduct;
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
 import com.accenture.franchises.common.exception.ConflictException;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
+import com.accenture.franchises.common.pagination.PageQuery;
+import com.accenture.franchises.common.pagination.PageResult;
 import com.accenture.franchises.product.domain.Product;
 import com.accenture.franchises.product.domain.ProductRepositoryPort;
 import java.time.Instant;
@@ -296,27 +297,6 @@ class BranchServiceTest {
     }
 
     @Test
-    void topProductsPerBranchReturnsTheBestProductOfEachBranch() {
-        existingFranchise();
-        TopProduct expected = new TopProduct(branchId, "Centro", productId, "Hamburguesa", 40);
-        when(branches.findTopProductsPerBranch(franchiseId)).thenReturn(List.of(expected));
-
-        List<TopProduct> top = service.topProductsPerBranch(franchiseId);
-
-        assertThat(top).containsExactly(expected);
-    }
-
-    @Test
-    void topProductsPerBranchFailsWhenFranchiseIsMissing() {
-        when(franchises.findById(franchiseId)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.topProductsPerBranch(franchiseId))
-                .isInstanceOf(ResourceNotFoundException.class);
-
-        verify(branches, never()).findTopProductsPerBranch(any());
-    }
-
-    @Test
     void findAllByFranchiseReturnsTheBranchesOfTheFranchise() {
         existingFranchise();
         Branch centro = Branch.restore(branchId, "Centro", franchiseId, now, now);
@@ -335,6 +315,15 @@ class BranchServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(branches, never()).findAllByFranchise(any());
+    }
+
+    @Test
+    void findAllDelegatesTheQueryToThePort() {
+        PageQuery query = PageQuery.of(1, 10);
+        PageResult<Branch> expected = PageResult.of(List.of(), 1, 10, 0);
+        when(branches.findAll(query)).thenReturn(expected);
+
+        assertThat(service.findAll(query)).isSameAs(expected);
     }
 
     @Test

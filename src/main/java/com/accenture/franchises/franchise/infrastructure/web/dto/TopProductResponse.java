@@ -1,6 +1,6 @@
-package com.accenture.franchises.branch.infrastructure.web.dto;
+package com.accenture.franchises.franchise.infrastructure.web.dto;
 
-import com.accenture.franchises.branch.domain.TopProduct;
+import com.accenture.franchises.franchise.domain.TopProduct;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.UUID;
 

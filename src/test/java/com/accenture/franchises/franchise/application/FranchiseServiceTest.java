@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
+import com.accenture.franchises.franchise.domain.TopProduct;
+import com.accenture.franchises.franchise.domain.TopProductPerBranchPort;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.common.pagination.PageQuery;
@@ -29,6 +31,9 @@ class FranchiseServiceTest {
 
     @Mock
     private FranchiseRepositoryPort franchises;
+
+    @Mock
+    private TopProductPerBranchPort topProducts;
 
     @InjectMocks
     private FranchiseService service;
@@ -118,6 +123,25 @@ class FranchiseServiceTest {
                 .isInstanceOf(DuplicateNameException.class);
 
         verify(franchises, never()).save(any());
+    }
+
+    @Test
+    void topProductsPerBranchReturnsTheBestProductOfEachBranch() {
+        when(franchises.findById(id)).thenReturn(Optional.of(Franchise.restore(id, "Acme", now, now)));
+        TopProduct expected = new TopProduct(UUID.randomUUID(), "Centro", UUID.randomUUID(), "Hamburguesa", 40);
+        when(topProducts.findTopProductPerBranch(id)).thenReturn(List.of(expected));
+
+        assertThat(service.topProductsPerBranch(id)).containsExactly(expected);
+    }
+
+    @Test
+    void topProductsPerBranchFailsWhenFranchiseIsMissing() {
+        when(franchises.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.topProductsPerBranch(id))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(topProducts, never()).findTopProductPerBranch(any());
     }
 
     @Test

@@ -4,7 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.accenture.franchises.branch.domain.Branch;
-import com.accenture.franchises.branch.domain.TopProduct;
+import com.accenture.franchises.common.pagination.PageQuery;
+import com.accenture.franchises.common.pagination.PageResult;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaEntity;
 import com.accenture.franchises.franchise.infrastructure.persistence.FranchiseJpaRepository;
 import com.accenture.franchises.product.infrastructure.persistence.ProductJpaEntity;
@@ -160,34 +161,16 @@ class BranchRepositoryAdapterTest {
     }
 
     @Test
-    void topProductsPerBranchReturnsTheBestProductOfEachBranch() {
-        UUID product1 = productRepository.saveAndFlush(new ProductJpaEntity("Pizza")).getId();
-        UUID branchA = adapter.save(Branch.create("North", franchiseId)).getId();
-        UUID branchB = adapter.save(Branch.create("South", franchiseId)).getId();
-        adapter.addProduct(branchA, productId, 5);
-        adapter.addProduct(branchA, product1, 20);
-        adapter.addProduct(branchB, productId, 30);
+    void findAllReturnsAPaginatedPageOfAllBranches() {
+        UUID other = franchiseRepository.saveAndFlush(new FranchiseJpaEntity("Beta")).getId();
+        adapter.save(Branch.create("Centro", franchiseId));
+        adapter.save(Branch.create("Norte", franchiseId));
+        adapter.save(Branch.create("Alfa", other));
 
-        var top = adapter.findTopProductsPerBranch(franchiseId);
+        PageResult<Branch> page = adapter.findAll(PageQuery.of(0, 2));
 
-        assertThat(top).extracting(TopProduct::branchName).containsExactly("North", "South");
-        assertThat(top).extracting(TopProduct::productId)
-                .containsExactly(product1, productId);
-        assertThat(top).extracting(TopProduct::stock).containsExactly(20, 30);
-        assertThat(top.get(0).productName()).isEqualTo("Pizza");
-    }
-
-    @Test
-    void topProductsPerBranchIsEmptyWhenTheFranchiseHasNoProducts() {
-        assertThat(adapter.findTopProductsPerBranch(franchiseId)).isEmpty();
-    }
-
-    @Test
-    void topProductsPerBranchIgnoresOtherFranchises() {
-        UUID alien = franchiseRepository.saveAndFlush(new FranchiseJpaEntity("Alien")).getId();
-        UUID alienBranch = adapter.save(Branch.create("Alfa", alien)).getId();
-        adapter.addProduct(alienBranch, productId, 100);
-
-        assertThat(adapter.findTopProductsPerBranch(franchiseId)).isEmpty();
+        assertThat(page.items()).hasSize(2);
+        assertThat(page.totalElements()).isEqualTo(3);
+        assertThat(page.totalPages()).isEqualTo(2);
     }
 }

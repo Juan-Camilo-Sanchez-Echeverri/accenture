@@ -1,5 +1,7 @@
 package com.accenture.franchises.branch.domain;
 
+import com.accenture.franchises.common.pagination.PageQuery;
+import com.accenture.franchises.common.pagination.PageResult;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +16,8 @@ public interface BranchRepositoryPort {
 
     List<Branch> findAllByFranchise(UUID franchiseId);
 
+    PageResult<Branch> findAll(PageQuery query);
+
     List<BranchProductSummary> findProducts(UUID branchId);
 
     void delete(UUID branchId);
@@ -25,6 +29,4 @@ public interface BranchRepositoryPort {
     void removeProduct(UUID branchId, UUID productId);
 
     BranchProduct updateStock(UUID branchId, UUID productId, int stock);
-
-    List<TopProduct> findTopProductsPerBranch(UUID franchiseId);
 }

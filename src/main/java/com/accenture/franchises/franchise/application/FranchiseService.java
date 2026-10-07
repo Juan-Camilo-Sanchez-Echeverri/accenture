@@ -2,10 +2,13 @@ package com.accenture.franchises.franchise.application;
 
 import com.accenture.franchises.franchise.domain.Franchise;
 import com.accenture.franchises.franchise.domain.FranchiseRepositoryPort;
+import com.accenture.franchises.franchise.domain.TopProduct;
+import com.accenture.franchises.franchise.domain.TopProductPerBranchPort;
 import com.accenture.franchises.common.exception.DuplicateNameException;
 import com.accenture.franchises.common.exception.ResourceNotFoundException;
 import com.accenture.franchises.common.pagination.PageQuery;
 import com.accenture.franchises.common.pagination.PageResult;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +20,11 @@ public class FranchiseService {
     private static final String TYPE = "Franchise";
 
     private final FranchiseRepositoryPort franchises;
+    private final TopProductPerBranchPort topProducts;
 
-    public FranchiseService(FranchiseRepositoryPort franchises) {
+    public FranchiseService(FranchiseRepositoryPort franchises, TopProductPerBranchPort topProducts) {
         this.franchises = franchises;
+        this.topProducts = topProducts;
     }
 
     @Transactional
@@ -51,6 +56,11 @@ public class FranchiseService {
     public void delete(UUID id) {
         getExisting(id);
         franchises.delete(id);
+    }
+
+    public List<TopProduct> topProductsPerBranch(UUID franchiseId) {
+        getExisting(franchiseId);
+        return topProducts.findTopProductPerBranch(franchiseId);
     }
 
     private Franchise getExisting(UUID id) {

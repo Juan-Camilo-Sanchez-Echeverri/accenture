@@ -18,15 +18,6 @@ public interface BranchProductJpaRepository extends JpaRepository<BranchProductJ
 
     @Query("""
             select bp from BranchProductJpaEntity bp
-            join fetch bp.branch b
-            join fetch bp.product p
-            where b.franchise.id = :franchiseId
-            order by bp.stock desc, p.name asc
-            """)
-    List<BranchProductJpaEntity> findAllByBranchFranchiseId(@Param("franchiseId") UUID franchiseId);
-
-    @Query("""
-            select bp from BranchProductJpaEntity bp
             join fetch bp.product p
             where bp.id.branchId = :branchId
             order by p.name asc
