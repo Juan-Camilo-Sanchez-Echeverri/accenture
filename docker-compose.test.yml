@@ -6,8 +6,7 @@ name: franchise-api-test
 #   docker compose up -d --build --wait
 #   docker compose -f docker-compose.test.yml run --rm test
 #
-# Monta el codigo fuente en lugar de construir una imagen, asi que los cambios se
-# reflejan sin rebuild.
+# Monte el codigo fuente y el cache de Maven; la imagen solo aporta el JDK.
 
 services:
 

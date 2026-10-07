@@ -62,6 +62,31 @@ Documentación interactiva de la API:
 - <http://localhost:8080/swagger-ui.html>
 - <http://localhost:8080/v3/api-docs>
 
+## Endpoints
+
+### Franquicias
+
+| Método   | Ruta                      | Descripción                   |
+| -------- | ------------------------- | ----------------------------- |
+| `POST`   | `/api/v1/franchises`      | Crea una franquicia           |
+| `GET`    | `/api/v1/franchises`      | Lista todas las franquicias   |
+| `GET`    | `/api/v1/franchises/{id}` | Obtiene una franquicia por id |
+| `PATCH`  | `/api/v1/franchises/{id}` | Renombra una franquicia       |
+| `DELETE` | `/api/v1/franchises/{id}` | Elimina una franquicia        |
+
+`POST` y `PATCH` reciben `{"name": "..."}`. El nombre es obligatorio, no puede
+estar en blanco y admite hasta 120 caracteres. No se puede repetir dentro de la
+misma app.
+
+`GET /api/v1/franchises` está paginado con `page` (página, empezando en 0) y
+`limit` (elementos por página, máximo 100): `?page=0&limit=20`. Se ordena por
+fecha de creación de forma estable. La respuesta es un envoltorio con `items`,
+`page`, `limit`, `totalElements` y `totalPages`.
+
+Los errores usan `application/problem+json` (RFC 7807): `400` con el detalle por
+campo en `errors`, `404` si no existe el recurso o la ruta, `405` si el método
+no está permitido y `409` si el nombre ya existe.
+
 ## Pruebas
 
 Postgres y Redis no publican puertos, así que las pruebas corren en un
@@ -75,6 +100,26 @@ El contenedor monta el código fuente y ejecuta `./mvnw verify`. El volumen
 `maven-cache` conserva las dependencias descargadas entre ejecuciones.
 
 ## Estructura
+
+Arquitectura hexagonal por módulos: el dominio es puro (sin Spring ni JPA), la
+capa de aplicación usa casos de uso y la infraestructura provee adaptadores.
+
+```
+com/accenture/franchises/
+├── FranchiseApiApplication.java   # punto de entrada y descripción OpenAPI
+├── franchise/                     # módulo de franquicias
+│   ├── domain/                    # modelo y puerto del repositorio (sin frameworks)
+│   ├── application/               # caso de uso FranchiseService
+│   └── infrastructure/
+│       ├── persistence/           # entidad JPA, repositorio y adapter
+│       └── web/                   # controller REST y DTOs de entrada/salida
+└── common/                        # código transversal (no es un módulo de negocio)
+    ├── exception/                 # excepciones compartidas entre módulos
+    ├── pagination/                # PageQuery y PageResult
+    └── infrastructure/web/        # GlobalExceptionHandler y PageResponse
+```
+
+A nivel de proyecto:
 
 ```
 .
@@ -99,8 +144,9 @@ El contenedor monta el código fuente y ejecuta `./mvnw verify`. El volumen
 | Framework     | Spring Boot 4.1.1 (Spring MVC)                  |
 | Build         | Maven 3.9 con Maven Wrapper                     |
 | Persistencia  | PostgreSQL 17 con Spring Data JPA e Hibernate 6 |
-| Migraciones   | Flyway                                          |
+| Esquema       | Hibernate `ddl-auto=update`                     |
 | Caché         | Redis 7                                         |
 | Documentación | springdoc-openapi (Swagger UI)                  |
 | Monitoreo     | Spring Boot Actuator                            |
 | Empaquetado   | Docker (imagen multi-stage, usuario no root)    |
+| Arquitectura  | Hexagonal por módulos (dominio, aplicación, infra) |
